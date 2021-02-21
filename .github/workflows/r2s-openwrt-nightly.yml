@@ -12,30 +12,22 @@ jobs:
     runs-on: ubuntu-latest
     name: r2s-openwrt-nightly
     steps:
-      
       - name: Init # 初始化构建环境
         run: |
-          sudo apt-get update
-          sudo apt-get -y install build-essential asciidoc binutils bzip2 gawk gettext git libncurses5-dev libz-dev patch python3 python2.7 unzip zlib1g-dev lib32gcc1 libc6-dev-i386 subversion flex uglifyjs git-core gcc-multilib p7zip p7zip-full msmtp libssl-dev texinfo libglib2.0-dev xmlto qemu-utils upx libelf-dev autoconf automake libtool autopoint device-tree-compiler g++-multilib antlr3 gperf wget curl swig rsync
+          # sudo apt-get update
+          # sudo apt-get -y install build-essential asciidoc binutils bzip2 gawk gettext git libncurses5-dev libz-dev patch python3 python2.7 unzip zlib1g-dev lib32gcc1 libc6-dev-i386 subversion flex uglifyjs git-core gcc-multilib p7zip p7zip-full msmtp libssl-dev texinfo libglib2.0-dev xmlto qemu-utils upx libelf-dev autoconf automake libtool autopoint device-tree-compiler g++-multilib antlr3 gperf wget curl swig rsync
           git clone https://github.com/coolsnowwolf/lede
-      
-      # 修改cat >> ~/lede/feeds.conf.default <<EOF和EOF之间的部分,替换为需要的feeds配置
+
       - name: Modify Feeds # 定制化Feeds配置
         run: |
-          rm -f $GITHUB_WORKSPACE/lede/feeds.conf.default
-          touch $GITHUB_WORKSPACE/lede/feeds.conf.default
-          cat >> $GITHUB_WORKSPACE/lede/feeds.conf.default <<EOF
-          src-git packages https://github.com/coolsnowwolf/packages
-          src-git luci https://github.com/coolsnowwolf/luci
-          src-git routing https://git.openwrt.org/feed/routing.git
-          src-git telephony https://git.openwrt.org/feed/telephony.git
-          src-git freifunk https://github.com/freifunk/openwrt-packages.git
-          #src-git video https://github.com/openwrt/video.git
-          #src-git targets https://github.com/openwrt/targets.git
-          #src-git management https://github.com/openwrt-management/packages.git
-          #src-git oldpackages http://git.openwrt.org/packages.git
-          #src-link custom /usr/src/openwrt/custom-feed
-          #src-git helloworld https://github.com/fw876/helloworld
-          src-git jerryk https://github.com/jerrykuku/openwrt-package
-          EOF
+          # 移除HelloWorld行的注释
+          sed -i 's/^#\(.*helloworld\)/\1/' $GITHUB_WORKSPACE/lede/feeds.conf.default
+          # 添加新的feeds源
+          sed -i '$a src-git jerryk https://github.com/jerrykuku/openwrt-package' $GITHUB_WORKSPACE/lede/feeds.conf.default
           cat $GITHUB_WORKSPACE/lede/feeds.conf.default
+
+      - name: Modify Static IP # 定制化路由器IP地址
+        run: |
+          # 修改路由器IP地址,替换192.168.1.1后面的部分
+          sed -i 's/192.168.1.1/192.168.2.1/g' $GITHUB_WORKSPACE/lede/package/base-files/files/bin/config_generate
+          cat $GITHUB_WORKSPACE/lede/package/base-files/files/bin/config_generate
