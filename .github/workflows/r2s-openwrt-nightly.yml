@@ -12,8 +12,29 @@ jobs:
     runs-on: ubuntu-latest
     name: r2s-openwrt-nightly
     steps:
+      
       - name: Init # 初始化构建环境
         run: |
           sudo apt-get update
           sudo apt-get -y install build-essential asciidoc binutils bzip2 gawk gettext git libncurses5-dev libz-dev patch python3 python2.7 unzip zlib1g-dev lib32gcc1 libc6-dev-i386 subversion flex uglifyjs git-core gcc-multilib p7zip p7zip-full msmtp libssl-dev texinfo libglib2.0-dev xmlto qemu-utils upx libelf-dev autoconf automake libtool autopoint device-tree-compiler g++-multilib antlr3 gperf wget curl swig rsync
           git clone https://github.com/coolsnowwolf/lede
+      
+      - name: Modify Feeds # 定制化Feeds配置
+        run: |
+          pwd
+          rm -f ~/lede/feeds.conf.default
+          touch ~/lede/feeds.conf.default
+          cat >> ~/lede/feeds.conf.default <<EOF
+          src-git packages https://github.com/coolsnowwolf/packages
+          src-git luci https://github.com/coolsnowwolf/luci
+          src-git routing https://git.openwrt.org/feed/routing.git
+          src-git telephony https://git.openwrt.org/feed/telephony.git
+          src-git freifunk https://github.com/freifunk/openwrt-packages.git
+          #src-git video https://github.com/openwrt/video.git
+          #src-git targets https://github.com/openwrt/targets.git
+          #src-git management https://github.com/openwrt-management/packages.git
+          #src-git oldpackages http://git.openwrt.org/packages.git
+          #src-link custom /usr/src/openwrt/custom-feed
+          #src-git helloworld https://github.com/fw876/helloworld
+          src-git jerryk https://github.com/jerrykuku/openwrt-package
+          EOF
