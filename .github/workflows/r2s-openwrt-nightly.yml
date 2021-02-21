@@ -6377,7 +6377,7 @@ jobs:
           make -j$(nproc) || make -j1 V=s
 
       - name: Upload release # 上传编译产物
-      - uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v2
         with:
           name: release
           path: $GITHUB_WORKSPACE/lede/bin/targets/rockchip/armv8/
