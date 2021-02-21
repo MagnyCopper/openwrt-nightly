@@ -18,17 +18,13 @@ jobs:
           sudo apt-get update
           sudo apt-get -y install build-essential asciidoc binutils bzip2 gawk gettext git libncurses5-dev libz-dev patch python3 python2.7 unzip zlib1g-dev lib32gcc1 libc6-dev-i386 subversion flex uglifyjs git-core gcc-multilib p7zip p7zip-full msmtp libssl-dev texinfo libglib2.0-dev xmlto qemu-utils upx libelf-dev autoconf automake libtool autopoint device-tree-compiler g++-multilib antlr3 gperf wget curl swig rsync
           git clone https://github.com/coolsnowwolf/lede
-          pwd
-          ls
       
       # 修改cat >> ~/lede/feeds.conf.default <<EOF和EOF之间的部分,替换为需要的feeds配置
       - name: Modify Feeds # 定制化Feeds配置
         run: |
-          pwd
-          ls
-          rm -f ~/lede/feeds.conf.default
-          touch ~/lede/feeds.conf.default
-          cat >> ~/lede/feeds.conf.default <<EOF
+          rm -f $GITHUB_WORKSPACE/lede/feeds.conf.default
+          touch $GITHUB_WORKSPACE/lede/feeds.conf.default
+          cat >> $GITHUB_WORKSPACE/lede/feeds.conf.default <<EOF
           src-git packages https://github.com/coolsnowwolf/packages
           src-git luci https://github.com/coolsnowwolf/luci
           src-git routing https://git.openwrt.org/feed/routing.git
@@ -42,3 +38,4 @@ jobs:
           #src-git helloworld https://github.com/fw876/helloworld
           src-git jerryk https://github.com/jerrykuku/openwrt-package
           EOF
+          cat $GITHUB_WORKSPACE/lede/feeds.conf.default
