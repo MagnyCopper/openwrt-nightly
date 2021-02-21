@@ -14,20 +14,24 @@ jobs:
     steps:
       - name: Init # 初始化构建环境
         run: |
-          # sudo apt-get update
-          # sudo apt-get -y install build-essential asciidoc binutils bzip2 gawk gettext git libncurses5-dev libz-dev patch python3 python2.7 unzip zlib1g-dev lib32gcc1 libc6-dev-i386 subversion flex uglifyjs git-core gcc-multilib p7zip p7zip-full msmtp libssl-dev texinfo libglib2.0-dev xmlto qemu-utils upx libelf-dev autoconf automake libtool autopoint device-tree-compiler g++-multilib antlr3 gperf wget curl swig rsync
+          sudo apt-get update
+          sudo apt-get -y install build-essential asciidoc binutils bzip2 gawk gettext git libncurses5-dev libz-dev patch python3 python2.7 unzip zlib1g-dev lib32gcc1 libc6-dev-i386 subversion flex uglifyjs git-core gcc-multilib p7zip p7zip-full msmtp libssl-dev texinfo libglib2.0-dev xmlto qemu-utils upx libelf-dev autoconf automake libtool autopoint device-tree-compiler g++-multilib antlr3 gperf wget curl swig rsync
           git clone https://github.com/coolsnowwolf/lede
 
-      - name: Modify Feeds # 定制化Feeds配置
+      - name: Modify Feeds Config # 定制化Feeds配置
         run: |
           # 移除HelloWorld行的注释
-          sed -i 's/^#\(.*helloworld\)/\1/' $GITHUB_WORKSPACE/lede/feeds.conf.default
+          # sed -i 's/^#\(.*helloworld\)/\1/' $GITHUB_WORKSPACE/lede/feeds.conf.default
           # 添加新的feeds源
           sed -i '$a src-git jerryk https://github.com/jerrykuku/openwrt-package' $GITHUB_WORKSPACE/lede/feeds.conf.default
-          cat $GITHUB_WORKSPACE/lede/feeds.conf.default
 
-      - name: Modify Static IP # 定制化路由器IP地址
+      - name: Modify Static IP Config # 定制化路由器IP地址,替换192.168.1.1后面的部分
         run: |
-          # 修改路由器IP地址,替换192.168.1.1后面的部分
+          # 修改路由器IP地址
           sed -i 's/192.168.1.1/192.168.2.1/g' $GITHUB_WORKSPACE/lede/package/base-files/files/bin/config_generate
-          cat $GITHUB_WORKSPACE/lede/package/base-files/files/bin/config_generate
+
+      - name: Update Feeds # 更新并安装feeds文件
+        run: |
+          cd $GITHUB_WORKSPACE/lede/
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
