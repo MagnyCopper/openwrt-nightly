@@ -37,6 +37,7 @@ jobs:
 
       - name: Generate configuration file # 生成配置文件
         run: |
+          cd $GITHUB_WORKSPACE/lede/
           rm -f $GITHUB_WORKSPACE/lede/.config*
           touch $GITHUB_WORKSPACE/lede/.config
           # 在 cat >> $GITHUB_WORKSPACE/lede/.config <<EOF 到 EOF 之间粘贴你的编译配置, 需注意缩进关系
@@ -6368,11 +6369,15 @@ jobs:
       - name: Make download # 下载相关依赖文件
         run: |
           cd $GITHUB_WORKSPACE/lede/
-          make -j8 download V=s
+          make download -j8
 
       - name: Compile firmware # 编译OpenWRT
         run: |
           cd $GITHUB_WORKSPACE/lede/
-          make -j1 V=s
-          cd $GITHUB_WORKSPACE/lede/bin/targets/rockchip/armv8
-          ls -a
+          make -j$(nproc) || make -j1 V=s
+
+      - name: Upload release # 上传编译产物
+      - uses: actions/upload-artifact@v2
+        with:
+          name: release
+          path: $GITHUB_WORKSPACE/lede/bin/targets/rockchip/armv8/
