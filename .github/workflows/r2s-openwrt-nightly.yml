@@ -20,6 +20,78 @@ jobs:
 
       - name: Checkout code # 检出代码
         run: |
-          echo $GITHUB_WORKSPACE
           cd ..
-          git clone https://github.com/coolsnowwolf/lede  
+          git clone https://github.com/coolsnowwolf/lede
+
+      - name: Space cleanup # 清理空间
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          docker rmi `docker images -q`
+          sudo rm -rf /usr/share/dotnet /etc/mysql /etc/php /etc/apt/sources.list.d
+          sudo -E apt-get -y purge azure-cli ghc* zulu* hhvm llvm* firefox google* dotnet* powershell openjdk* mysql* php* android*
+          sudo -E apt-get update
+          sudo -E apt-get -y install build-essential asciidoc binutils bzip2 gawk gettext git libncurses5-dev libz-dev patch python3 unzip zlib1g-dev lib32gcc1 libc6-dev-i386 subversion flex uglifyjs gcc-multilib g++-multilib p7zip p7zip-full msmtp libssl-dev texinfo libglib2.0-dev xmlto qemu-utils upx libelf-dev autoconf automake libtool autopoint device-tree-compiler antlr3 gperf swig
+          sudo -E apt-get -y autoremove --purge
+          sudo -E apt-get clean
+          df -h
+
+      - name: Update feeds # 更新feeds
+        run: |
+          cd ../lede
+          # 移除HelloWorld行的注释
+          sed -i 's/^#\(.*helloworld\)/\1/' ./feeds.conf.default
+          # 添加新的feeds源
+          sed -i '$a src-git jerryk https://github.com/jerrykuku/openwrt-package' ./feeds.conf.default
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+
+      - name: Modify Static IP Config # 定制化路由器IP地址,替换192.168.1.1后面的部分
+        run: |
+          cd ../lede
+          # 修改路由器IP地址
+          sed -i 's/192.168.1.1/192.168.10.1/g' ./package/base-files/files/bin/config_generate
+
+      - name: Generate configuration file # 生成编译配置
+        run: |
+          cd ../lede
+          rm -f ./.config*
+          mv $GITHUB_WORKSPACE/config.txt ./.config
+          sed -i 's/^[ \t]*//g' ./.config
+          make defconfig
+
+      - name: Make download # 预下载数据
+        run: |
+          cd ../lede
+          make download -j8
+          find dl -size -1024c -exec rm -f {} \;
+
+      - name: Compile firmware # 编译固件
+        run: |
+          cd ../lede
+          make -j$(nproc) || make -j1 V=s
+          echo "======================="
+          echo "Space usage:"
+          echo "======================="
+          df -h
+          echo "======================="
+          du -h --max-depth=1 ./ --exclude=build_dir --exclude=bin
+          du -h --max-depth=1 ./build_dir
+          du -h --max-depth=1 ./bin
+
+      - name: Prepare artifact # 准备上传文件
+        run: |
+          cd ../lede
+          mkdir -p ./artifact/firmware
+          mkdir -p ./artifact/package
+          mkdir -p ./artifact/buildinfo
+          rm -rf $(find ./bin/targets/ -type d -name "packages")
+          cp -rf $(find ./bin/targets/ -type f) ./artifact/firmware/
+          cp -rf $(find ./bin/packages/ -type f -name "*.ipk") ./artifact/package/
+          cp -rf $(find ./bin/targets/ -type f -name "*.buildinfo" -o -name "*.manifest") ./artifact/buildinfo/
+
+      - name: Deliver firmware
+        uses: actions/upload-artifact@v2
+        with:
+          name: OpenWrt_firmware
+          path: ../lede/bin/targets/
