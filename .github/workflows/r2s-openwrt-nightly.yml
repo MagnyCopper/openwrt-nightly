@@ -59,6 +59,7 @@ jobs:
           mv $GITHUB_WORKSPACE/config.txt ./.config
           sed -i 's/^[ \t]*//g' ./.config
           make defconfig
+          cat .config
 
       - name: Make download # 预下载数据
         run: |
