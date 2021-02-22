@@ -15,7 +15,7 @@ jobs:
       - name: Check out # 检出配置
         uses: actions/checkout@v2
         with:
-          ref: master
+          ref: main
 
       - name: Space cleanup # 清理磁盘空间
         env:
