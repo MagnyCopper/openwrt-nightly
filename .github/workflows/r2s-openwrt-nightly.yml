@@ -6238,7 +6238,7 @@ jobs:
       - name: Compile firmware # 编译OpenWRT
         run: |
           cd $GITHUB_WORKSPACE/lede/
-          make -j$(nproc) || make -j1 V=s
+          make -j1 V=s
           mkdir upload
           ls ./bin/targets/rockchip/armv8/
           cp ./bin/targets/rockchip/armv8/* ./upload/
