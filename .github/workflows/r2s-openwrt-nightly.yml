@@ -6241,7 +6241,7 @@ jobs:
           make -j1 V=s
           mkdir upload
           ls ./bin/targets/rockchip/armv8/
-          cp ./bin/targets/rockchip/armv8/* ./upload/
+          cp -r ./bin/targets/rockchip/armv8/* ./upload/
 
       - name: Upload release # 上传编译产物
         uses: actions/upload-artifact@v2
