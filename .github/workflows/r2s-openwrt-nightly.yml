@@ -6239,9 +6239,12 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/lede/
           make -j$(nproc) || make -j1 V=s
+          mkdir upload
+          ls ./bin/targets/rockchip/armv8/
+          cp ./bin/targets/rockchip/armv8/* ./upload/
 
       - name: Upload release # 上传编译产物
         uses: actions/upload-artifact@v2
         with:
           name: release
-          path: $GITHUB_WORKSPACE/lede/bin/targets/rockchip/armv8/
+          path: $GITHUB_WORKSPACE/lede/upload/
