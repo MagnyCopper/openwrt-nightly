@@ -20,5 +20,6 @@ jobs:
 
       - name: Checkout code # 检出代码
         run: |
-          pwd
+          echo $GITHUB_WORKSPACE
+          cd ..
           git clone https://github.com/coolsnowwolf/lede  
