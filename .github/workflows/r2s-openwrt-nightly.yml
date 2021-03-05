@@ -42,6 +42,7 @@ jobs:
           sed -i 's/^#\(.*helloworld\)/\1/' ./feeds.conf.default
           # 添加新的feeds源
           sed -i '$a src-git jerryk https://github.com/jerrykuku/openwrt-package' ./feeds.conf.default
+          ./scripts/feeds clean
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
