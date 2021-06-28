@@ -38,10 +38,9 @@ jobs:
       - name: Update feeds # 更新feeds
         run: |
           cd ../lede
-          # 移除HelloWorld行的注释
-          sed -i 's/^#\(.*helloworld\)/\1/' ./feeds.conf.default
           # 添加新的feeds源
           sed -i '$a src-git jerryk https://github.com/jerrykuku/openwrt-package' ./feeds.conf.default
+          sed -i '$a src-git helloworld https://github.com/fw876/helloworld' ./feeds.conf.default
           ./scripts/feeds clean
           ./scripts/feeds update -a
           ./scripts/feeds install -a
