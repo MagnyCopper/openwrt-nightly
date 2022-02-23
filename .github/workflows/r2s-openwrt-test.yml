@@ -55,7 +55,7 @@ jobs:
         run: |
           cd ../lede
           rm -f ./.config*
-          mv $GITHUB_WORKSPACE/config-test.txt ./.config
+          mv $GITHUB_WORKSPACE/config.txt ./.config
           sed -i 's/^[ \t]*//g' ./.config
           make defconfig
 
