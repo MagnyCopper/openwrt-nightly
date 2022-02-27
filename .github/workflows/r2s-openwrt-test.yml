@@ -1,8 +1,6 @@
 name: r2s-openwrt-test
 
 on:
-  schedule:
-    - cron: 0 19 * * * # 定时任务触发
   push:
     branches:
       - dev # 修改dev分支时触发ci流程
