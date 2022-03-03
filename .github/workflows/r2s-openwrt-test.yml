@@ -1,22 +1,20 @@
-name: r2s-openwrt-nightly
+name: r2s-openwrt-test
 
 on:
-  schedule:
-    - cron: 0 11 * * * # 定时任务触发
   push:
     branches:
-      - main # 修改主分支时触发ci流程
+      - dev # 修改dev分支时触发ci流程
 
 jobs:
-  r2s-openwrt-nightly:
+  r2s-openwrt-test:
     runs-on: ubuntu-latest
-    name: r2s-openwrt-nightly
+    name: r2s-openwrt-test
 
     steps:
       - name: Checkout # 检出配置
         uses: actions/checkout@v2
         with:
-          ref: main
+          ref: dev
 
       - name: Checkout code # 检出代码
         run: |
