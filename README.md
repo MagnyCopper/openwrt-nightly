@@ -24,6 +24,7 @@ openwrt的每日自动构建打包发布
 - luci-app-serverchan
 - luci-app-nft-qos
 - luci-app-netdata
+- luci-app-ddnsto
 - luci-app-argon-config
 - luci-app-adbyby-plus
 - luci-theme-argon-18.06
