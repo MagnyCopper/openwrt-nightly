@@ -21,7 +21,7 @@ jobs:
           cd ..
           git clone https://github.com/coolsnowwolf/lede
 
-      - name: Space cleanup # 清理空间
+      - name: Space cleanup
         env:
           DEBIAN_FRONTEND: noninteractive
         run: |
