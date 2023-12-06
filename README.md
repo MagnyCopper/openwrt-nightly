@@ -17,7 +17,6 @@ openwrt的每日自动构建打包发布
 
 - luci-app-wrtbwmon
 - luci-app-watchcat
-- luci-app-vssr
 - luci-app-uugamebooster
 - luci-app-turboacc
 - luci-app-ttyd

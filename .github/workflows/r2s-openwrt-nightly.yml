@@ -14,7 +14,7 @@ jobs:
 
     steps:
       - name: Checkout # 检出配置
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           ref: main
 
@@ -23,28 +23,27 @@ jobs:
           cd ..
           git clone https://github.com/coolsnowwolf/lede
 
-      - name: Space cleanup
+      - name: Space cleanup # 初始化环境
         env:
           DEBIAN_FRONTEND: noninteractive
         run: |
           docker rmi `docker images -q`
-          sudo rm -rf /usr/share/dotnet /etc/mysql /etc/php /etc/apt/sources.list.d /usr/local/lib/android
-          sudo -E apt-get -y purge azure-cli ghc* zulu* hhvm llvm* firefox google* dotnet* powershell openjdk* adoptopenjdk* mysql* php* mongodb* dotnet* moby* snapd* || true
-          sudo -E apt-get update 
-          sudo -E apt-get -y install ack antlr3 aria2 asciidoc autoconf automake autopoint binutils bison build-essential bzip2 ccache cmake cpio curl device-tree-compiler fastjar flex gawk gettext gcc-multilib g++-multilib git gperf haveged help2man intltool libc6-dev-i386 libelf-dev libglib2.0-dev libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev libncurses5-dev libncursesw5-dev libreadline-dev libssl-dev libtool lrzsz mkisofs msmtp nano ninja-build p7zip p7zip-full patch pkgconf python2.7 python3 python3-pip libpython3-dev qemu-utils rsync scons squashfs-tools subversion swig texinfo uglifyjs upx-ucl unzip vim wget xmlto xxd zlib1g-dev
-          sudo -E apt-get -y autoremove --purge
-          sudo -E apt-get clean
-          df -h
+          sudo -E rm -rf /usr/share/dotnet /etc/mysql /etc/php /etc/apt/sources.list.d /usr/local/lib/android
+          sudo -E apt-mark hold grub-efi-amd64-signed
+          sudo -E apt update
+          sudo -E apt -y purge azure-cli* docker* ghc* zulu* llvm* firefox google* dotnet* powershell* openjdk* mysql* php* mongodb* dotnet* snap*
+          sudo -E apt -y full-upgrade
+          sudo -E apt -y install ack antlr3 aria2 asciidoc autoconf automake autopoint binutils bison build-essential bzip2 ccache cmake cpio curl device-tree-compiler fastjar flex gawk gettext gcc-multilib g++-multilib git gperf haveged help2man intltool libc6-dev-i386 libelf-dev libglib2.0-dev libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev libncurses5-dev libncursesw5-dev libreadline-dev libssl-dev libtool lrzsz mkisofs msmtp nano ninja-build p7zip p7zip-full patch pkgconf python3 python3-pip libpython3-dev qemu-utils rsync scons squashfs-tools subversion swig texinfo uglifyjs upx-ucl unzip vim wget xmlto xxd zlib1g-dev
+          sudo -E systemctl daemon-reload
+          sudo -E apt -y autoremove --purge
+          sudo -E apt clean
+          sudo -E timedatectl set-timezone "Asia/Shanghai"
 
       - name: Update feeds # 更新feeds
         run: |
           cd ../lede
           # 添加新的feeds源
-          sed -i '$a src-git jerryk https://github.com/jerrykuku/openwrt-package' ./feeds.conf.default
-          sed -i '$a src-git helloworld https://github.com/fw876/helloworld' ./feeds.conf.default
-          sed -i '$a src-git nas https://github.com/linkease/nas-packages.git;master' ./feeds.conf.default
-          sed -i '$a src-git nas_luci https://github.com/linkease/nas-packages-luci.git;main' ./feeds.conf.default
-          # sed -i '$a src-git passwall https://github.com/xiaorouji/openwrt-passwall' ./feeds.conf.default
+          sed -i 's/#src-git helloworld/src-git helloworld/g' ./feeds.conf.default
           ./scripts/feeds clean
           ./scripts/feeds update -a
           ./scripts/feeds install -a
@@ -59,20 +58,27 @@ jobs:
         run: |
           cd ../lede
           rm -f ./.config*
-          mv $GITHUB_WORKSPACE/config.txt ./.config
+          mv $GITHUB_WORKSPACE/config-r2s.txt ./.config
           sed -i 's/^[ \t]*//g' ./.config
           make defconfig
 
       - name: Make download # 预下载数据
         run: |
           cd ../lede
-          make download -j8
-          find dl -size -1024c -exec rm -f {} \;
+          make download -j16
 
       - name: Compile firmware # 编译固件
         run: |
           cd ../lede
           make -j$(nproc) || make -j1 V=s
+          echo "======================="
+          echo "Space usage:"
+          echo "======================="
+          df -h
+          echo "======================="
+          du -h --max-depth=1 ./ --exclude=build_dir --exclude=bin
+          du -h --max-depth=1 ./build_dir
+          du -h --max-depth=1 ./bin
 
       - name: Prepare artifact # 准备上传文件
         run: |
