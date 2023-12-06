@@ -2,7 +2,7 @@ name: r2s-openwrt-nightly
 
 on:
   schedule:
-    - cron: 0 11 * * * # 定时任务触发
+    - cron: 0 11 * * 1 # 定时任务触发
   push:
     branches:
       - main # 修改主分支时触发ci流程
