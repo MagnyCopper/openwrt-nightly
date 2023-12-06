@@ -8,15 +8,15 @@ on:
       - main # 修改主分支时触发ci流程
 
 jobs:
-  r2s-openwrt-nightly:
+  r2s-openwrt-test:
     runs-on: ubuntu-latest
-    name: r2s-openwrt-nightly
+    name: r2s-openwrt-test
 
     steps:
       - name: Checkout # 检出配置
         uses: actions/checkout@v3
         with:
-          ref: main
+          ref: dev
 
       - name: Checkout code # 检出代码
         run: |
