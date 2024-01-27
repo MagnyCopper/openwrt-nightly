@@ -42,6 +42,8 @@ jobs:
           cd ../lede
           # 添加新的feeds源
           sed -i 's/#src-git helloworld/src-git helloworld/g' ./feeds.conf.default
+          echo 'src-git nas https://github.com/linkease/nas-packages.git;master' >> feeds.conf.default
+          echo 'src-git nas_luci https://github.com/linkease/nas-packages-luci.git;main' >> feeds.conf.default
           ./scripts/feeds clean
           ./scripts/feeds update -a
           ./scripts/feeds install -a
