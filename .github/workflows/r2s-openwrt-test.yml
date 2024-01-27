@@ -40,6 +40,7 @@ jobs:
       - name: Update feeds # 更新feeds
         run: |
           cd ../lede
+          ls -a
           # 添加新的feeds源
           sed -i 's/#src-git helloworld/src-git helloworld/g' ./feeds.conf.default
           echo 'src-git nas https://github.com/linkease/nas-packages.git;master' >> ./feeds.conf.default
