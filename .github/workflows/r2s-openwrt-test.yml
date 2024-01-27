@@ -40,11 +40,16 @@ jobs:
       - name: Update feeds # 更新feeds
         run: |
           cd ../lede
+          echo '123'
           # 添加新的feeds源
           sed -i 's/#src-git helloworld/src-git helloworld/g' ./feeds.conf.default
-          echo 'src-git nas https://github.com/linkease/nas-packages.git;master' >> ./feeds.conf.default
-          echo 'src-git nas_luci https://github.com/linkease/nas-packages-luci.git;main' >> ./feeds.conf.default
-          echo 'src-git passwall https://github.com/xiaorouji/openwrt-passwall' >> ./feeds.conf.default
+          echo '123'
+          echo 'src-git nas https://github.com/linkease/nas-packages.git;master' >> feeds.conf.default
+          echo '123'
+          echo 'src-git nas_luci https://github.com/linkease/nas-packages-luci.git;main' >> feeds.conf.default
+          echo '123'
+          echo 'src-git passwall https://github.com/xiaorouji/openwrt-passwall' >> feeds.conf.default
+          echo '123'
           /# 添加皮肤插件
           mkdir package/lean/
           echo '123'
