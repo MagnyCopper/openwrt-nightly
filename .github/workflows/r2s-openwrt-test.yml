@@ -40,6 +40,9 @@ jobs:
       - name: Update feeds # 更新feeds
         run: |
           pwd
+          ls -a
+          cd ..
+          ls -a
           cd ../lede
           # 添加新的feeds源
           sed -i 's/#src-git helloworld/src-git helloworld/g' ./feeds.conf.default
