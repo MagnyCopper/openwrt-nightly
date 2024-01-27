@@ -42,18 +42,13 @@ jobs:
           cd ../lede
           # 添加新的feeds源
           sed -i 's/#src-git helloworld/src-git helloworld/g' ./feeds.conf.default
-          echo '123'
           echo 'src-git nas https://github.com/linkease/nas-packages.git;master' >> ./feeds.conf.default
-          echo '123'
           echo 'src-git nas_luci https://github.com/linkease/nas-packages-luci.git;main' >> ./feeds.conf.default
-          echo '123'
           echo 'src-git passwall https://github.com/xiaorouji/openwrt-passwall' >> ./feeds.conf.default
-          echo '123'
           /# 添加皮肤插件
+          mkdir ./package/lean/
           cd ./package/lean/
-          echo '123'
           git clone -b 18.06 https://github.com/jerrykuku/luci-theme-argon.git luci-theme-argon
-          echo '123'
           # 安装VSSR及依赖
           git clone https://github.com/jerrykuku/lua-maxminddb.git
           git clone https://github.com/MagnyCopper/luci-app-vssr.git
