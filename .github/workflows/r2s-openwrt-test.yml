@@ -49,7 +49,8 @@ jobs:
           cd ./package
           ls -a
           echo '123'
-          cd package/lean/
+          mkdir lean
+          cd ./lean
           cho '123'
           git clone -b 18.06 https://github.com/jerrykuku/luci-theme-argon.git luci-theme-argon
           cho '123'
