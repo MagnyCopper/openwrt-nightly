@@ -46,12 +46,8 @@ jobs:
           echo 'src-git nas_luci https://github.com/linkease/nas-packages-luci.git;main' >> ./feeds.conf.default
           echo 'src-git passwall https://github.com/xiaorouji/openwrt-passwall' >> ./feeds.conf.default
           # 添加皮肤插件
-          cd ./package
-          ls -a
+          cd ./package/lean
           echo '123'
-          mkdir lean
-          cd ./lean
-          cho '123'
           git clone -b 18.06 https://github.com/jerrykuku/luci-theme-argon.git luci-theme-argon
           cho '123'
           # 安装VSSR及依赖
