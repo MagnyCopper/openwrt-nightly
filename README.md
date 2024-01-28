@@ -15,16 +15,18 @@ openwrt的每日自动构建打包发布
 
 ## 插件清单
 
-- luci-app-wrtbwmon
-- luci-app-watchcat
-- luci-app-uugamebooster
-- luci-app-turboacc
-- luci-app-ttyd
-- luci-app-serverchan
-- luci-app-ramfree
-- luci-app-nft-qos
-- luci-app-netdata
-- luci-app-ddnsto
-- luci-app-argon-config
-- luci-app-adbyby-plus
 - luci-theme-argon-18.06
+- luci-app-argon-config
+- luci-app-attendedsysupgrade
+- luci-app-ddnsto
+- luci-app-design-config
+- luci-app-netdata
+- luci-app-nft-qos
+- luci-app-ramfree
+- luci-app-serverchan
+- luci-app-smartdns
+- luci-app-ttyd
+- luci-app-uugamebooster
+- luci-app-vssr
+- luci-app-watchcat
+- luci-app-wrtbwmon
