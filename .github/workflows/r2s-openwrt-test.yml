@@ -42,12 +42,12 @@ jobs:
           cd ../lede
           # 添加新的feeds源
           sed -i 's/#src-git helloworld/src-git helloworld/g' ./feeds.conf.default
-          echo 'src-git nas https://github.com/linkease/nas-packages.git;master' >> feeds.conf.default
-          echo 'src-git nas_luci https://github.com/linkease/nas-packages-luci.git;main' >> feeds.conf.default
-          echo 'src-git passwall https://github.com/xiaorouji/openwrt-passwall' >> feeds.conf.default
+          echo 'src-git nas https://github.com/linkease/nas-packages.git;master' >> ./feeds.conf.default
+          echo 'src-git nas_luci https://github.com/linkease/nas-packages-luci.git;main' >> ./feeds.conf.default
+          echo 'src-git passwall https://github.com/xiaorouji/openwrt-passwall' >> ./feeds.conf.default
           # 添加皮肤插件
+          cd ./package
           ls -a
-          mkdir package/lean/
           echo '123'
           cd package/lean/
           cho '123'
