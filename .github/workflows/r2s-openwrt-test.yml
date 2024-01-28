@@ -47,19 +47,18 @@ jobs:
           echo 'src-git passwall https://github.com/xiaorouji/openwrt-passwall' >> ./feeds.conf.default
           # 添加皮肤插件
           cd ./package/lean
-          echo '123'
           git clone -b 18.06 https://github.com/jerrykuku/luci-theme-argon.git luci-theme-argon
-          cho '123'
+          echo '123'
           # 安装VSSR及依赖
           git clone https://github.com/jerrykuku/lua-maxminddb.git
-          cho '123'
+          echo '123'
           git clone https://github.com/MagnyCopper/luci-app-vssr.git
-          cho '123'
+          echo '123'
           # 安装插件
           cd ../../
-          cho '123'
+          echo '123'
           ./scripts/feeds clean
-          cho '123'
+          echo '123'
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
