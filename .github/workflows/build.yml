@@ -93,8 +93,21 @@ jobs:
       - name: Clone source code
         working-directory: /workdir
         run: |
+          # Preserve cached dirs if they exist (restored by cache action)
+          for d in staging_dir build_dir .ccache; do
+            if [ -d "openwrt/$d" ]; then
+              mv "openwrt/$d" "/tmp/openwrt-cache-$d"
+            fi
+          done
+          rm -rf openwrt
           git clone --depth=1 --single-branch -b "${SOURCE_REPO_BRANCH}" \
             "${SOURCE_REPO_URL}" openwrt
+          # Restore cached dirs
+          for d in staging_dir build_dir .ccache; do
+            if [ -d "/tmp/openwrt-cache-$d" ]; then
+              mv "/tmp/openwrt-cache-$d" "openwrt/$d"
+            fi
+          done
           ln -sf /workdir/openwrt "$GITHUB_WORKSPACE/openwrt"
 
       - name: Run pre-build hook & update feeds
