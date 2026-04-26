@@ -100,10 +100,10 @@ jobs:
       - name: Run pre-build hook & update feeds
         run: |
           cd /workdir/openwrt
-          HOOK="profiles/${{ inputs.profile }}/hooks/pre-build.sh"
+          HOOK="${GITHUB_WORKSPACE}/profiles/${{ inputs.profile }}/hooks/pre-build.sh"
           if [ -f "$HOOK" ]; then
             chmod +x "$HOOK"
-            source scripts/common.sh
+            source "${GITHUB_WORKSPACE}/scripts/common.sh"
             "$HOOK"
           fi
           ./scripts/feeds update -a
@@ -113,15 +113,15 @@ jobs:
         run: |
           cd /workdir/openwrt
           # Copy custom files
-          if [ -d "profiles/${{ inputs.profile }}/files" ]; then
+          if [ -d "${GITHUB_WORKSPACE}/profiles/${{ inputs.profile }}/files" ]; then
             mkdir -p files
-            cp -r profiles/${{ inputs.profile }}/files/* files/ 2>/dev/null || true
+            cp -r "${GITHUB_WORKSPACE}/profiles/${{ inputs.profile }}/files/"* files/ 2>/dev/null || true
           fi
           # Start with device-specific config
-          cp "profiles/${{ inputs.profile }}/config" .config
+          cp "${GITHUB_WORKSPACE}/profiles/${{ inputs.profile }}/config" .config
           # Merge shared packages
-          if [ -f "configs/packages.conf" ]; then
-            grep -v '^\s*#' configs/packages.conf | grep -v '^\s*$' >> .config
+          if [ -f "${GITHUB_WORKSPACE}/configs/packages.conf" ]; then
+            grep -v '^\s*#' "${GITHUB_WORKSPACE}/configs/packages.conf" | grep -v '^\s*$' >> .config
             echo "Shared packages merged from configs/packages.conf"
           fi
 
@@ -176,9 +176,9 @@ jobs:
       - name: Run post-build hook
         if: ${{ success() }}
         run: |
-          source scripts/common.sh
+          source "${GITHUB_WORKSPACE}/scripts/common.sh"
           export OPENWRT_ROOT=/workdir/openwrt
-          HOOK="profiles/${{ inputs.profile }}/hooks/post-build.sh"
+          HOOK="${GITHUB_WORKSPACE}/profiles/${{ inputs.profile }}/hooks/post-build.sh"
           if [ -f "$HOOK" ]; then
             chmod +x "$HOOK"
             "$HOOK"
