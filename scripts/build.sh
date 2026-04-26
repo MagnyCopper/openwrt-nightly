@@ -111,7 +111,7 @@ update_feeds() {
 }
 
 load_config_file() {
-    log_info "Loading device configuration..."
+    log_info "Loading and merging configuration..."
     cd "${OPENWRT_ROOT}"
 
     # Copy custom files
@@ -121,7 +121,7 @@ load_config_file() {
         log_ok "Custom files copied"
     fi
 
-    # Copy .config
+    # Start with device-specific config
     if [[ -f "${PROFILE_DIR}/config" ]]; then
         cp "${PROFILE_DIR}/config" "${OPENWRT_ROOT}/.config"
         log_ok "Device config loaded"
@@ -129,6 +129,18 @@ load_config_file() {
         log_error "No config file found at ${PROFILE_DIR}/config"
         exit 1
     fi
+
+    # Merge shared packages (configs/packages.conf)
+    local packages_conf="${WORKSPACE}/configs/packages.conf"
+    if [[ -f "${packages_conf}" ]]; then
+        # Append non-comment, non-empty lines from packages.conf
+        grep -v '^\s*#' "${packages_conf}" | grep -v '^\s*$' >> "${OPENWRT_ROOT}/.config"
+        log_ok "Shared packages merged from configs/packages.conf"
+    else
+        log_warn "No shared packages.conf found, using device config only"
+    fi
+
+    log_info "Configuration ready (make defconfig will resolve dependencies)"
 }
 
 # ============================================
