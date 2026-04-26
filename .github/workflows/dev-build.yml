@@ -23,10 +23,10 @@ on:
 
 jobs:
   build:
-    name: Dev Build (${{ github.event.inputs.profile || 'r2s' }})
+    name: Dev Build (${{ inputs.profile || 'r2s' }})
     uses: ./.github/workflows/build.yml
     with:
-      profile: ${{ github.event.inputs.profile || 'r2s' }}
+      profile: ${{ inputs.profile || 'r2s' }}
       publish: false
-      ssh_debug: ${{ github.event.inputs.ssh_debug || false }}
+      ssh_debug: ${{ inputs.ssh_debug || false }}
     secrets: inherit
