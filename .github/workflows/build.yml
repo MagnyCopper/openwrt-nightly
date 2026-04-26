@@ -77,7 +77,6 @@ jobs:
         with:
           path: |
             /workdir/openwrt/staging_dir/toolchain-*
-            /workdir/openwrt/build_dir/toolchain-*
           key: toolchain-${{ inputs.profile }}-${{ env.SOURCE_REPO_BRANCH }}-${{ hashFiles(format('profiles/{0}/config', inputs.profile)) }}
           restore-keys: |
             toolchain-${{ inputs.profile }}-${{ env.SOURCE_REPO_BRANCH }}-
@@ -94,7 +93,7 @@ jobs:
         working-directory: /workdir
         run: |
           # Preserve cached dirs if they exist (restored by cache action)
-          for d in staging_dir build_dir .ccache; do
+          for d in staging_dir .ccache; do
             if [ -d "openwrt/$d" ]; then
               mv "openwrt/$d" "/tmp/openwrt-cache-$d"
             fi
@@ -102,8 +101,8 @@ jobs:
           rm -rf openwrt
           git clone --depth=1 --single-branch -b "${SOURCE_REPO_BRANCH}" \
             "${SOURCE_REPO_URL}" openwrt
-          # Restore cached dirs
-          for d in staging_dir build_dir .ccache; do
+          # Restore cached dirs (skip build_dir to avoid stale intermediate files)
+          for d in staging_dir .ccache; do
             if [ -d "/tmp/openwrt-cache-$d" ]; then
               mv "/tmp/openwrt-cache-$d" "openwrt/$d"
             fi
