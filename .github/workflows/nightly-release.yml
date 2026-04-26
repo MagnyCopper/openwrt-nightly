@@ -1,0 +1,28 @@
+name: Weekly Release Build
+
+on:
+  schedule:
+    # Every Sunday at 04:00 HKT (Saturday 20:00 UTC)
+    - cron: '0 20 * * 6'
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: 'Device profile to build'
+        required: false
+        type: string
+        default: 'r2s'
+      ssh_debug:
+        description: 'Enable SSH debugging'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  build:
+    name: Nightly Build (${{ github.event.inputs.profile || 'r2s' }})
+    uses: ./.github/workflows/build.yml
+    with:
+      profile: ${{ github.event.inputs.profile || 'r2s' }}
+      publish: true
+      ssh_debug: ${{ github.event.inputs.ssh_debug || false }}
+    secrets: inherit

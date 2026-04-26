@@ -1,0 +1,243 @@
+name: Build OpenWrt Firmware
+
+on:
+  workflow_call:
+    inputs:
+      profile:
+        description: 'Device profile name (e.g., r2s)'
+        required: true
+        type: string
+      source:
+        description: 'Source definition script (e.g., source-immortalwrt.sh)'
+        required: false
+        type: string
+        default: 'source-immortalwrt.sh'
+      publish:
+        description: 'Publish to GitHub Releases'
+        required: false
+        type: boolean
+        default: false
+      ssh_debug:
+        description: 'Enable SSH debugging'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  TZ: Asia/Shanghai
+
+jobs:
+  build:
+    name: Build ${{ inputs.profile }}
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Load build configuration
+        shell: bash
+        run: |
+          source scripts/common.sh
+          source scripts/${{ inputs.source }}
+          set_build_metadata "${{ inputs.profile }}" "${SOURCE_NAME}"
+
+          cat >> "$GITHUB_ENV" <<EOF
+          SOURCE_REPO_URL=${SOURCE_REPO_URL}
+          SOURCE_REPO_BRANCH=${SOURCE_REPO_BRANCH}
+          SOURCE_NAME=${SOURCE_NAME}
+          PROFILE=${{ inputs.profile }}
+          PUBLISH=${{ inputs.publish }}
+          BUILD_DATE=${BUILD_DATE}
+          BUILD_TIMESTAMP=${BUILD_TIMESTAMP}
+          ARTIFACT_NAME=${ARTIFACT_NAME}
+          RELEASE_TAG=${RELEASE_TAG}
+          EOF
+
+      - name: Free disk space
+        shell: bash
+        run: |
+          source scripts/common.sh
+          cleanup_runner
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          source scripts/${{ inputs.source }}
+          install_deps
+          sudo timedatectl set-timezone "$TZ"
+          sudo mkdir -p /workdir
+          sudo chown $USER:$GROUPS /workdir
+
+      - name: Cache toolchain
+        uses: actions/cache@v4
+        with:
+          path: |
+            /workdir/openwrt/staging_dir/toolchain-*
+            /workdir/openwrt/build_dir/toolchain-*
+          key: toolchain-${{ inputs.profile }}-${{ env.SOURCE_REPO_BRANCH }}-${{ hashFiles(format('profiles/{0}/config', inputs.profile)) }}
+          restore-keys: |
+            toolchain-${{ inputs.profile }}-${{ env.SOURCE_REPO_BRANCH }}-
+
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: /workdir/openwrt/.ccache
+          key: ccache-${{ inputs.profile }}-${{ env.SOURCE_REPO_BRANCH }}-${{ github.run_id }}
+          restore-keys: |
+            ccache-${{ inputs.profile }}-${{ env.SOURCE_REPO_BRANCH }}-
+
+      - name: Clone source code
+        working-directory: /workdir
+        run: |
+          git clone --depth=1 --single-branch -b "${SOURCE_REPO_BRANCH}" \
+            "${SOURCE_REPO_URL}" openwrt
+          ln -sf /workdir/openwrt "$GITHUB_WORKSPACE/openwrt"
+
+      - name: Run pre-build hook & update feeds
+        run: |
+          cd /workdir/openwrt
+          HOOK="profiles/${{ inputs.profile }}/hooks/pre-build.sh"
+          if [ -f "$HOOK" ]; then
+            chmod +x "$HOOK"
+            source scripts/common.sh
+            "$HOOK"
+          fi
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+
+      - name: Load device config
+        run: |
+          cd /workdir/openwrt
+          if [ -d "profiles/${{ inputs.profile }}/files" ]; then
+            mkdir -p files
+            cp -r profiles/${{ inputs.profile }}/files/* files/ 2>/dev/null || true
+          fi
+          cp "profiles/${{ inputs.profile }}/config" .config
+
+      - name: SSH debug
+        uses: mxschmitt/action-tmate@v3
+        if: ${{ inputs.ssh_debug }}
+        timeout-minutes: 30
+        with:
+          limit-access-to-actor: true
+
+      - name: Download sources
+        run: |
+          cd /workdir/openwrt
+          make defconfig
+          make download -j$(nproc)
+          find dl -size -1024c -exec ls -l {} \;
+          find dl -size -1024c -exec rm -f {} \;
+
+      - name: Compile firmware
+        id: compile
+        run: |
+          cd /workdir/openwrt
+          echo "::group::Parallel build ($(nproc) threads)"
+          make -j$(nproc) || {
+            echo "::endgroup::"
+            echo "::group::Single thread retry"
+            make -j1 || {
+              echo "::endgroup::"
+              echo "::group::Verbose single thread retry"
+              make -j1 V=s
+              echo "::endgroup::"
+            }
+          }
+          echo "::endgroup::"
+
+          grep '^CONFIG_TARGET.*DEVICE.*=y' .config | sed -r 's/.*DEVICE_(.*)=y/\1/' > DEVICE_NAME
+          echo "DEVICE_NAME=_$(cat DEVICE_NAME 2>/dev/null || echo unknown)" >> "$GITHUB_ENV"
+
+      - name: Collect firmware
+        if: ${{ success() }}
+        id: collect
+        run: |
+          mkdir -p firmware
+          cd /workdir/openwrt
+          find bin/targets -type f \( -name "*.img.gz" -o -name "*.img" -o -name "*.bin" -o -name "*.itb" \) \
+            -exec cp {} "$GITHUB_WORKSPACE/firmware/" \;
+          find bin/targets -name "sha256sums" -exec cp {} "$GITHUB_WORKSPACE/firmware/" \;
+          cd "$GITHUB_WORKSPACE/firmware"
+          echo "FIRMWARE_DIR=$GITHUB_WORKSPACE/firmware" >> "$GITHUB_ENV"
+          ls -lh
+
+      - name: Run post-build hook
+        if: ${{ success() }}
+        run: |
+          source scripts/common.sh
+          export OPENWRT_ROOT=/workdir/openwrt
+          HOOK="profiles/${{ inputs.profile }}/hooks/post-build.sh"
+          if [ -f "$HOOK" ]; then
+            chmod +x "$HOOK"
+            "$HOOK"
+          fi
+
+      - name: Upload firmware artifact
+        if: ${{ success() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.SOURCE_NAME }}-${{ env.PROFILE }}-${{ env.BUILD_DATE }}
+          path: ${{ env.FIRMWARE_DIR }}/*
+          retention-days: 14
+
+      - name: Generate release body
+        if: ${{ success() && inputs.publish }}
+        id: release
+        run: |
+          cat > release-body.md <<EOF
+          ## ${SOURCE_NAME} Firmware for ${{ inputs.profile }}
+
+          | Item | Value |
+          |------|-------|
+          | Source | ${SOURCE_NAME} |
+          | Branch/Tag | ${SOURCE_REPO_BRANCH} |
+          | Device | ${{ inputs.profile }} |
+          | Build Date | ${BUILD_DATE} |
+          | Target | rockchip/armv8 |
+
+          ### Flash Instructions
+          1. Download the `.img.gz` file
+          2. Decompress to get `.img`
+          3. Flash to SD card using balenaEtcher or `dd`
+          4. Insert SD card into device and power on
+
+          ### Default Access
+          - Address: http://192.168.1.1 or http://immortalwrt.lan
+          - Username: root
+          - Password: *(none)*
+          EOF
+
+      - name: Publish to GitHub Releases
+        if: ${{ success() && inputs.publish }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: "${{ env.SOURCE_NAME }} ${{ env.PROFILE }} (${{ env.BUILD_DATE }})"
+          body_path: release-body.md
+          files: ${{ env.FIRMWARE_DIR }}/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Prune old releases
+        if: ${{ success() && inputs.publish }}
+        uses: dev-drprasad/delete-older-releases@master
+        with:
+          keep_latest: 5
+          delete_tags: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Prune old workflow runs
+        if: ${{ !cancelled() }}
+        uses: Mattraks/delete-workflow-runs@v2
+        with:
+          retain_days: 7
+          keep_minimum_runs: 5
+
+      - name: Disk usage
+        if: ${{ !cancelled() }}
+        run: df -hT

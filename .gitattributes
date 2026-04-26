@@ -1,0 +1,7 @@
+# Ensure LF line endings for scripts and workflows used in Linux CI
+*.sh text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.config text eol=lf
+*.md text eol=lf
+99-custom-settings text eol=lf

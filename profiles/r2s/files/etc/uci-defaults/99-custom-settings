@@ -1,0 +1,10 @@
+#!/bin/sh
+# Custom settings applied on first boot
+# This script auto-deletes after execution
+
+# Set LAN IP (change as needed)
+# uci set network.lan.ipaddr="192.168.2.1"
+# uci set network.lan.netmask="255.255.255.0"
+# uci commit network
+
+exit 0
