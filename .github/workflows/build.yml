@@ -100,11 +100,11 @@ jobs:
       - name: Run pre-build hook & update feeds
         run: |
           cd /workdir/openwrt
+          source "${GITHUB_WORKSPACE}/scripts/common.sh"
           HOOK="${GITHUB_WORKSPACE}/profiles/${{ inputs.profile }}/hooks/pre-build.sh"
           if [ -f "$HOOK" ]; then
             chmod +x "$HOOK"
-            source "${GITHUB_WORKSPACE}/scripts/common.sh"
-            "$HOOK"
+            source "$HOOK"
           fi
           ./scripts/feeds update -a
           ./scripts/feeds install -a

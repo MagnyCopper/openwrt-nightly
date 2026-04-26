@@ -8,4 +8,4 @@
 # Example: Apply a patch
 # patch -p1 < "${PROFILE_DIR}/patches/some-fix.patch"
 
-log_info "R2S pre-build hook executed"
+log_info "R2S pre-build hook executed" 2>/dev/null || echo "R2S pre-build hook executed"
