@@ -1,0 +1,26 @@
+# Build artifacts
+firmware/
+
+# Agent tools
+.playwright-mcp/
+.sisyphus/
+
+# GitHub Actions logs
+run-logs/
+build-log*.txt
+run-logs.zip
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editor files
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# OpenWrt build (local)
+openwrt/
