@@ -5,6 +5,11 @@
 #
 
 #
+# Build Optimization
+#
+CONFIG_CCACHE=y
+
+#
 # Target
 #
 CONFIG_TARGET_rockchip=y

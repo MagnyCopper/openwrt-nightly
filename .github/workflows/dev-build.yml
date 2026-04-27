@@ -6,7 +6,7 @@ on:
       - dev
     paths:
       - 'profiles/**'
-      - 'scripts/**'
+      - 'configs/**'
       - '.github/workflows/**'
   workflow_dispatch:
     inputs:

@@ -19,10 +19,10 @@ on:
 
 jobs:
   build:
-    name: Nightly Build (${{ github.event.inputs.profile || 'r2s' }})
+    name: Nightly Build (${{ inputs.profile || 'r2s' }})
     uses: ./.github/workflows/build.yml
     with:
-      profile: ${{ github.event.inputs.profile || 'r2s' }}
+      profile: ${{ inputs.profile || 'r2s' }}
       publish: true
-      ssh_debug: ${{ github.event.inputs.ssh_debug || false }}
+      ssh_debug: ${{ inputs.ssh_debug || false }}
     secrets: inherit

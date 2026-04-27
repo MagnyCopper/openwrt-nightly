@@ -7,18 +7,28 @@ on:
         description: 'Device profile name (e.g., r2s)'
         required: true
         type: string
-      source:
-        description: 'Source definition script (e.g., source-immortalwrt.sh)'
+      source_repo_url:
+        description: 'Git repository URL'
         required: false
         type: string
-        default: 'source-immortalwrt.sh'
+        default: 'https://github.com/immortalwrt/immortalwrt.git'
+      source_branch:
+        description: 'Git branch or tag'
+        required: false
+        type: string
+        default: 'openwrt-24.10'
+      source_name:
+        description: 'Source display name'
+        required: false
+        type: string
+        default: 'immortalwrt'
       publish:
         description: 'Publish to GitHub Releases'
         required: false
         type: boolean
         default: false
       ssh_debug:
-        description: 'Enable SSH debugging'
+        description: 'Enable SSH debugging via tmate'
         required: false
         type: boolean
         default: false
@@ -34,95 +44,93 @@ jobs:
       contents: write
 
     steps:
+      # ── Phase 1: Checkout & Environment ──────────────────────────
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Load build configuration
-        shell: bash
+      - name: Set build metadata
         run: |
-          source scripts/common.sh
-          source scripts/${{ inputs.source }}
-          set_build_metadata "${{ inputs.profile }}" "${SOURCE_NAME}"
+          BUILD_DATE=$(date +"%Y.%m.%d")
+          BUILD_TIMESTAMP=$(date +"%Y%m%d%H%M")
+          ARTIFACT_NAME="${{ inputs.source_name }}-${{ inputs.profile }}-${BUILD_DATE}"
+          RELEASE_TAG="v${BUILD_DATE}-${BUILD_TIMESTAMP}"
 
-          cat >> "$GITHUB_ENV" <<EOF
-          SOURCE_REPO_URL=${SOURCE_REPO_URL}
-          SOURCE_REPO_BRANCH=${SOURCE_REPO_BRANCH}
-          SOURCE_NAME=${SOURCE_NAME}
-          PROFILE=${{ inputs.profile }}
-          PUBLISH=${{ inputs.publish }}
-          BUILD_DATE=${BUILD_DATE}
-          BUILD_TIMESTAMP=${BUILD_TIMESTAMP}
-          ARTIFACT_NAME=${ARTIFACT_NAME}
-          RELEASE_TAG=${RELEASE_TAG}
-          EOF
+          echo "BUILD_DATE=${BUILD_DATE}" >> "$GITHUB_ENV"
+          echo "BUILD_TIMESTAMP=${BUILD_TIMESTAMP}" >> "$GITHUB_ENV"
+          echo "ARTIFACT_NAME=${ARTIFACT_NAME}" >> "$GITHUB_ENV"
+          echo "RELEASE_TAG=${RELEASE_TAG}" >> "$GITHUB_ENV"
+          echo "SOURCE_REPO_URL=${{ inputs.source_repo_url }}" >> "$GITHUB_ENV"
+          echo "SOURCE_REPO_BRANCH=${{ inputs.source_branch }}" >> "$GITHUB_ENV"
+          echo "SOURCE_NAME=${{ inputs.source_name }}" >> "$GITHUB_ENV"
+          echo "PROFILE=${{ inputs.profile }}" >> "$GITHUB_ENV"
 
       - name: Free disk space
-        shell: bash
         run: |
-          source scripts/common.sh
-          cleanup_runner
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          sudo docker image prune --all --force 2>/dev/null || true
+          sudo -E apt-get -qq autoremove --purge
+          sudo -E apt-get -qq clean
+          df -hT /
 
-      - name: Install dependencies
-        shell: bash
+      - name: Install build dependencies
         run: |
-          source scripts/common.sh
-          source scripts/${{ inputs.source }}
-          install_deps
+          sudo -E apt-get -qq update
+          sudo -E apt-get -qq install -y \
+            ack antlr3 asciidoc autoconf automake autopoint binutils bison build-essential \
+            bzip2 ccache clang cmake cpio curl device-tree-compiler ecj fastjar flex gawk \
+            gettext gcc-multilib g++-multilib git gnutls-dev gperf haveged help2man intltool \
+            lib32gcc-s1 libc6-dev-i386 libelf-dev libglib2.0-dev libgmp3-dev libltdl-dev \
+            libmpc-dev libmpfr-dev libncurses-dev libpython3-dev libreadline-dev libssl-dev \
+            libtool libyaml-dev libz-dev lld llvm lrzsz mkisofs msmtp nano ninja-build \
+            p7zip p7zip-full patch pkgconf python3 python3-pip python3-ply python3-docutils \
+            python3-pyelftools qemu-utils re2c rsync scons squashfs-tools subversion swig \
+            texinfo uglifyjs upx-ucl unzip vim wget xmlto xxd zlib1g-dev zstd
           sudo timedatectl set-timezone "$TZ"
           sudo mkdir -p /workdir
           sudo chown "$USER:$(id -gn)" /workdir
 
-      - name: Cache toolchain
-        uses: actions/cache@v4
-        with:
-          path: |
-            /workdir/openwrt/staging_dir/toolchain-*
-          key: toolchain-${{ inputs.profile }}-${{ env.SOURCE_REPO_BRANCH }}-${{ hashFiles(format('profiles/{0}/config', inputs.profile)) }}
-          restore-keys: |
-            toolchain-${{ inputs.profile }}-${{ env.SOURCE_REPO_BRANCH }}-
-
-      - name: Cache ccache
-        uses: actions/cache@v4
-        with:
-          path: /workdir/openwrt/.ccache
-          key: ccache-${{ inputs.profile }}-${{ env.SOURCE_REPO_BRANCH }}-${{ github.run_id }}
-          restore-keys: |
-            ccache-${{ inputs.profile }}-${{ env.SOURCE_REPO_BRANCH }}-
-
+      # ── Phase 2: Clone Source ────────────────────────────────────
       - name: Clone source code
         working-directory: /workdir
         run: |
-          # Preserve cached dirs if they exist (restored by cache action)
-          for d in staging_dir .ccache; do
-            if [ -d "openwrt/$d" ]; then
-              mv "openwrt/$d" "/tmp/openwrt-cache-$d"
-            fi
-          done
-          rm -rf openwrt
-          git clone --depth=1 --single-branch -b "${SOURCE_REPO_BRANCH}" \
-            "${SOURCE_REPO_URL}" openwrt
-          # Restore cached dirs (skip build_dir to avoid stale intermediate files)
-          for d in staging_dir .ccache; do
-            if [ -d "/tmp/openwrt-cache-$d" ]; then
-              mv "/tmp/openwrt-cache-$d" "openwrt/$d"
-            fi
-          done
-          ln -sf /workdir/openwrt "$GITHUB_WORKSPACE/openwrt"
+          git clone --depth=1 --single-branch \
+            -b "${SOURCE_REPO_BRANCH}" "${SOURCE_REPO_URL}" openwrt
 
-      - name: Run pre-build hook & update feeds
+      # ── Phase 3: Restore Cache (AFTER clone, safe) ──────────────
+      - name: Restore download cache
+        uses: actions/cache@v4
+        with:
+          path: /workdir/openwrt/dl
+          key: dl-${{ inputs.profile }}-${{ inputs.source_branch }}
+          restore-keys: |
+            dl-${{ inputs.profile }}-${{ inputs.source_branch }}-
+
+      - name: Restore ccache
+        uses: actions/cache@v4
+        with:
+          path: /workdir/openwrt/.ccache
+          key: ccache-${{ inputs.profile }}-${{ inputs.source_branch }}-${{ hashFiles(format('profiles/{0}/config', inputs.profile)) }}
+          restore-keys: |
+            ccache-${{ inputs.profile }}-${{ inputs.source_branch }}-
+
+      # ── Phase 4: Feeds & Third-party Packages ────────────────────
+      - name: Setup third-party feeds
+        working-directory: /workdir/openwrt
         run: |
-          cd /workdir/openwrt
-          source "${GITHUB_WORKSPACE}/scripts/common.sh"
-          HOOK="${GITHUB_WORKSPACE}/profiles/${{ inputs.profile }}/hooks/pre-build.sh"
+          PROFILE="${{ inputs.profile }}"
+          HOOK="${GITHUB_WORKSPACE}/profiles/${PROFILE}/hooks/pre-build.sh"
           if [ -f "$HOOK" ]; then
             chmod +x "$HOOK"
             source "$HOOK"
           fi
+
+      - name: Update & install feeds
+        working-directory: /workdir/openwrt
+        run: |
           ./scripts/feeds update -a
 
-          # Post-feed-update: override golang toolchain (must be after feeds update)
-          # This is needed because feeds update restores the original golang feed
-          if [ -d "feeds/packages/lang/golang" ] && [ -f "/tmp/.r2s-golang-override" ]; then
+          # Override golang toolchain if flagged by pre-build hook (e.g., mosdns needs Go 1.24+)
+          if [ -f /tmp/.golang-override ] && [ -d feeds/packages/lang/golang ]; then
             rm -rf feeds/packages/lang/golang
             git clone --depth=1 -b 24.x https://github.com/sbwml/packages_lang_golang.git feeds/packages/lang/golang
             echo "Overrode golang toolchain with sbwml 24.x"
@@ -130,22 +138,21 @@ jobs:
 
           ./scripts/feeds install -a -f
 
-      - name: Load device config
+      # ── Phase 5: Configuration ──────────────────────────────────
+      - name: Load device configuration
+        working-directory: /workdir/openwrt
         run: |
-          cd /workdir/openwrt
-          # Copy custom files
-          if [ -d "${GITHUB_WORKSPACE}/profiles/${{ inputs.profile }}/files" ]; then
-            mkdir -p files
-            cp -r "${GITHUB_WORKSPACE}/profiles/${{ inputs.profile }}/files/"* files/ 2>/dev/null || true
+          PROFILE="${{ inputs.profile }}"
+          # Copy custom files overlay
+          if [ -d "${GITHUB_WORKSPACE}/profiles/${PROFILE}/files" ]; then
+            cp -r "${GITHUB_WORKSPACE}/profiles/${PROFILE}/files/"* . 2>/dev/null || true
           fi
-          # Start with device-specific config
-          cp "${GITHUB_WORKSPACE}/profiles/${{ inputs.profile }}/config" .config
-          # Merge shared packages
-          if [ -f "${GITHUB_WORKSPACE}/configs/packages.conf" ]; then
-            grep -v '^\s*#' "${GITHUB_WORKSPACE}/configs/packages.conf" | grep -v '^\s*$' >> .config
-            echo "Shared packages merged from configs/packages.conf"
-          fi
+          # Device-specific config as base
+          cp "${GITHUB_WORKSPACE}/profiles/${PROFILE}/config" .config
+          # Merge shared packages (skip comments and blank lines)
+          grep -v '^\s*#' "${GITHUB_WORKSPACE}/configs/packages.conf" | grep -v '^\s*$' >> .config
 
+      # ── Phase 6: SSH Debug ──────────────────────────────────────
       - name: SSH debug
         uses: mxschmitt/action-tmate@v3
         if: ${{ inputs.ssh_debug }}
@@ -153,18 +160,18 @@ jobs:
         with:
           limit-access-to-actor: true
 
+      # ── Phase 7: Build ──────────────────────────────────────────
       - name: Download sources
+        working-directory: /workdir/openwrt
         run: |
-          cd /workdir/openwrt
           make defconfig
           make download -j$(nproc)
           find dl -size -1024c -exec ls -l {} \;
           find dl -size -1024c -exec rm -f {} \;
 
       - name: Compile firmware
-        id: compile
+        working-directory: /workdir/openwrt
         run: |
-          cd /workdir/openwrt
           echo "::group::Parallel build ($(nproc) threads)"
           make -j$(nproc) || {
             echo "::endgroup::"
@@ -178,44 +185,32 @@ jobs:
           }
           echo "::endgroup::"
 
-          grep '^CONFIG_TARGET.*DEVICE.*=y' .config | sed -r 's/.*DEVICE_(.*)=y/\1/' > DEVICE_NAME
+          grep '^CONFIG_TARGET.*DEVICE.*=y' .config \
+            | sed -r 's/.*DEVICE_(.*)=y/\1/' > DEVICE_NAME
           echo "DEVICE_NAME=_$(cat DEVICE_NAME 2>/dev/null || echo unknown)" >> "$GITHUB_ENV"
 
+      # ── Phase 8: Collect & Publish ──────────────────────────────
       - name: Collect firmware
         if: ${{ success() }}
-        id: collect
+        working-directory: /workdir/openwrt
         run: |
-          mkdir -p firmware
-          cd /workdir/openwrt
+          mkdir -p "${GITHUB_WORKSPACE}/firmware"
           find bin/targets -type f \( -name "*.img.gz" -o -name "*.img" -o -name "*.bin" -o -name "*.itb" \) \
-            -exec cp {} "$GITHUB_WORKSPACE/firmware/" \;
-          find bin/targets -name "sha256sums" -exec cp {} "$GITHUB_WORKSPACE/firmware/" \;
-          cd "$GITHUB_WORKSPACE/firmware"
-          echo "FIRMWARE_DIR=$GITHUB_WORKSPACE/firmware" >> "$GITHUB_ENV"
-          ls -lh
-
-      - name: Run post-build hook
-        if: ${{ success() }}
-        run: |
-          source "${GITHUB_WORKSPACE}/scripts/common.sh"
-          export OPENWRT_ROOT=/workdir/openwrt
-          HOOK="${GITHUB_WORKSPACE}/profiles/${{ inputs.profile }}/hooks/post-build.sh"
-          if [ -f "$HOOK" ]; then
-            chmod +x "$HOOK"
-            "$HOOK"
-          fi
+            -exec cp {} "${GITHUB_WORKSPACE}/firmware/" \;
+          find bin/targets -name "sha256sums" -exec cp {} "${GITHUB_WORKSPACE}/firmware/" \;
+          echo "FIRMWARE_DIR=${GITHUB_WORKSPACE}/firmware" >> "$GITHUB_ENV"
+          ls -lh "${GITHUB_WORKSPACE}/firmware/"
 
       - name: Upload firmware artifact
         if: ${{ success() }}
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.SOURCE_NAME }}-${{ env.PROFILE }}-${{ env.BUILD_DATE }}
+          name: ${{ env.ARTIFACT_NAME }}
           path: ${{ env.FIRMWARE_DIR }}/*
           retention-days: 14
 
       - name: Generate release body
         if: ${{ success() && inputs.publish }}
-        id: release
         run: |
           cat > release-body.md <<EOF
           ## ${SOURCE_NAME} Firmware for ${{ inputs.profile }}
@@ -229,9 +224,9 @@ jobs:
           | Target | rockchip/armv8 |
 
           ### Flash Instructions
-          1. Download the `.img.gz` file
-          2. Decompress to get `.img`
-          3. Flash to SD card using balenaEtcher or `dd`
+          1. Download the \`.img.gz\` file
+          2. Decompress to get \`.img\`
+          3. Flash to SD card using balenaEtcher or \`dd\`
           4. Insert SD card into device and power on
 
           ### Default Access
@@ -245,7 +240,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.RELEASE_TAG }}
-          name: "${{ env.SOURCE_NAME }} ${{ env.PROFILE }} (${{ env.BUILD_DATE }})"
+          name: "${{ env.SOURCE_NAME }} ${{ inputs.profile }} (${{ env.BUILD_DATE }})"
           body_path: release-body.md
           files: ${{ env.FIRMWARE_DIR }}/*
         env:
@@ -260,6 +255,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      # ── Phase 9: Cleanup ────────────────────────────────────────
       - name: Prune old workflow runs
         if: ${{ !cancelled() }}
         uses: Mattraks/delete-workflow-runs@v2

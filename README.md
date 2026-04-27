@@ -13,7 +13,7 @@
 ### 自动构建
 
 - **主分支 (main)**: 每周日自动构建并发布到 [Releases](../../releases)
-- **开发分支 (dev)**: 推送到 `profiles/`、`scripts/` 或 workflow 文件时自动构建（仅 Artifacts）
+- **开发分支 (dev)**: 推送到 `profiles/`、`configs/` 或 workflow 文件时自动构建（仅 Artifacts）
 
 ### 手动触发
 
@@ -31,18 +31,12 @@ profiles/
   r2s/
     config               # R2S 硬件配置 (target, 分区, USB 网卡驱动)
     hooks/pre-build.sh    # 构建前钩子 (添加第三方软件源)
-    hooks/post-build.sh   # 构建后钩子
     files/                # 自定义固件文件 (开机自动应用)
       etc/uci-defaults/
         80-packet-steering  # RPS 多核网络负载均衡
 
-scripts/
-  common.sh              # 工具函数 (log_info, cleanup_runner)
-  source-immortalwrt.sh  # ImmortalWrt 源码定义
-  build.sh               # 构建编排
-
 .github/workflows/
-  build.yml              # 可复用构建工作流 (核心引擎)
+  build.yml              # 可复用构建工作流 (核心引擎，无外部脚本)
   dev-build.yml          # dev 分支触发器
   nightly-release.yml    # main 分支定时发布
 ```
@@ -127,9 +121,10 @@ R2S 的 4 核 Cortex-A53 在默认配置下，所有网络中断都由 CPU0 处�
 
 ### 构建优化
 
-- 工具链 + ccache 缓存，加速重复构建
+- 仅缓存 `dl/`（源码包）和 `.ccache`（编译缓存），避免工具链缓存与新源码不兼容
 - 三级重试: 并行编译 → 单线程 → 详细单线程日志
 - 自动清理 Runner 磁盘空间
+- 所有构建逻辑内联于 `build.yml`，无外部脚本依赖
 
 ## 添加新设备
 
