@@ -119,7 +119,16 @@ jobs:
             source "$HOOK"
           fi
           ./scripts/feeds update -a
-          ./scripts/feeds install -a
+
+          # Post-feed-update: override golang toolchain (must be after feeds update)
+          # This is needed because feeds update restores the original golang feed
+          if [ -d "feeds/packages/lang/golang" ] && [ -f "/tmp/.r2s-golang-override" ]; then
+            rm -rf feeds/packages/lang/golang
+            git clone --depth=1 -b 24.x https://github.com/sbwml/packages_lang_golang.git feeds/packages/lang/golang
+            echo "Overrode golang toolchain with sbwml 24.x"
+          fi
+
+          ./scripts/feeds install -a -f
 
       - name: Load device config
         run: |
