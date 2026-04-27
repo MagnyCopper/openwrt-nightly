@@ -54,6 +54,8 @@ jobs:
           BUILD_TIMESTAMP=$(date +"%Y%m%d%H%M")
           ARTIFACT_NAME="${{ inputs.source_name }}-${{ inputs.profile }}-${BUILD_DATE}"
           RELEASE_TAG="v${BUILD_DATE}-${BUILD_TIMESTAMP}"
+          # Derive a short repo hash for cache scoping
+          REPO_HASH=$(echo -n "${{ inputs.source_repo_url }}" | sha256sum | cut -c1-12)
 
           echo "BUILD_DATE=${BUILD_DATE}" >> "$GITHUB_ENV"
           echo "BUILD_TIMESTAMP=${BUILD_TIMESTAMP}" >> "$GITHUB_ENV"
@@ -63,6 +65,7 @@ jobs:
           echo "SOURCE_REPO_BRANCH=${{ inputs.source_branch }}" >> "$GITHUB_ENV"
           echo "SOURCE_NAME=${{ inputs.source_name }}" >> "$GITHUB_ENV"
           echo "PROFILE=${{ inputs.profile }}" >> "$GITHUB_ENV"
+          echo "REPO_HASH=${REPO_HASH}" >> "$GITHUB_ENV"
 
       - name: Free disk space
         run: |
@@ -101,27 +104,35 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /workdir/openwrt/dl
-          key: dl-${{ inputs.profile }}-${{ inputs.source_branch }}
+          key: dl-${{ inputs.profile }}-${{ env.REPO_HASH }}-${{ inputs.source_branch }}
           restore-keys: |
-            dl-${{ inputs.profile }}-${{ inputs.source_branch }}-
+            dl-${{ inputs.profile }}-${{ env.REPO_HASH }}-${{ inputs.source_branch }}-
 
       - name: Restore ccache
         uses: actions/cache@v4
         with:
           path: /workdir/openwrt/.ccache
-          key: ccache-${{ inputs.profile }}-${{ inputs.source_branch }}-${{ hashFiles(format('profiles/{0}/config', inputs.profile)) }}
+          key: ccache-${{ inputs.profile }}-${{ env.REPO_HASH }}-${{ inputs.source_branch }}-${{ hashFiles(format('profiles/{0}/config', inputs.profile)) }}
           restore-keys: |
-            ccache-${{ inputs.profile }}-${{ inputs.source_branch }}-
+            ccache-${{ inputs.profile }}-${{ env.REPO_HASH }}-${{ inputs.source_branch }}-
 
       # ── Phase 4: Feeds & Third-party Packages ────────────────────
-      - name: Setup third-party feeds
+      - name: Setup third-party feeds (ddnsto + mosdns + geodata)
         working-directory: /workdir/openwrt
         run: |
           PROFILE="${{ inputs.profile }}"
-          HOOK="${GITHUB_WORKSPACE}/profiles/${PROFILE}/hooks/pre-build.sh"
-          if [ -f "$HOOK" ]; then
-            chmod +x "$HOOK"
-            source "$HOOK"
+          # Only R2S profile needs third-party feeds currently
+          if [ "$PROFILE" = "r2s" ]; then
+            # DDNSTo (linkease/nas-packages)
+            echo "src-git ddnsto https://github.com/linkease/nas-packages.git" >> feeds.conf.default
+            echo "src-git ddnsto_luci https://github.com/linkease/nas-packages-luci.git" >> feeds.conf.default
+
+            # MosDNS v5 (sbwml/luci-app-mosdns)
+            git clone --depth=1 -b v5 https://github.com/sbwml/luci-app-mosdns.git package/luci-app-mosdns
+            git clone --depth=1 https://github.com/sbwml/v2ray-geodata.git package/v2ray-geodata
+
+            # Signal that golang toolchain override is needed (mosdns v5 needs Go 1.25+)
+            touch /tmp/.golang-override
           fi
 
       - name: Update & install feeds
@@ -129,7 +140,7 @@ jobs:
         run: |
           ./scripts/feeds update -a
 
-          # Override golang toolchain if flagged by pre-build hook (e.g., mosdns needs Go 1.24+)
+          # Override golang toolchain if flagged (mosdns v5 needs Go 1.25+)
           if [ -f /tmp/.golang-override ] && [ -d feeds/packages/lang/golang ]; then
             rm -rf feeds/packages/lang/golang
             git clone --depth=1 -b 25.x https://github.com/sbwml/packages_lang_golang.git feeds/packages/lang/golang
@@ -171,7 +182,11 @@ jobs:
 
       - name: Compile firmware
         working-directory: /workdir/openwrt
+        env:
+          CCACHE_DIR: /workdir/openwrt/.ccache
         run: |
+          mkdir -p "${CCACHE_DIR}"
+          echo "CCACHE_DIR=${CCACHE_DIR}" >> "$GITHUB_ENV"
           echo "::group::Parallel build ($(nproc) threads)"
           make -j$(nproc) || {
             echo "::endgroup::"

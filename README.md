@@ -30,7 +30,6 @@ configs/
 profiles/
   r2s/
     config               # R2S 硬件配置 (target, 分区, USB 网卡驱动)
-    hooks/pre-build.sh    # 构建前钩子 (添加第三方软件源)
     files/                # 自定义固件文件 (开机自动应用)
       etc/uci-defaults/
         80-packet-steering  # RPS 多核网络负载均衡
@@ -128,20 +127,24 @@ R2S 的 4 核 Cortex-A53 在默认配置下，所有网络中断都由 CPU0 处�
 
 ## 添加新设备
 
-1. 创建 `profiles/<device>/config` — 硬件配置
-2. 可选: 添加 `files/` (自定义文件) 和 `hooks/` (构建钩子)
-3. 在 workflow 中指定新的 profile 名称
+1. 创建 `profiles/<device>/config` — 硬件配置（须包含 `CONFIG_CCACHE=y`）
+2. 可选: 添加 `files/` (自定义固件文件)
+3. 在 `build.yml` Phase 6 中添加设备专属的第三方软件源逻辑
+4. 更新 `dev-build.yml` 和 `nightly-release.yml` 的默认 profile
 
 ## 添加第三方软件源
 
-在 `profiles/<device>/hooks/pre-build.sh` 中添加:
+第三方软件源配置直接内联于 `build.yml` 的 Phase 6 步骤中，按 profile 条件执行：
 
-```bash
-# 方式一: 添加 feed 源
-echo "src-git feedname https://github.com/user/repo.git" >> feeds.conf.default
-
-# 方式二: 直接克隆到 package 目录
-git clone --depth=1 https://github.com/user/repo.git package/repo-name
+```yaml
+- name: Setup third-party feeds
+  run: |
+    if [ "$PROFILE" = "your-device" ]; then
+      # 方式一: 添加 feed 源
+      echo "src-git feedname https://github.com/user/repo.git" >> feeds.conf.default
+      # 方式二: 直接克隆到 package 目录
+      git clone --depth=1 https://github.com/user/repo.git package/repo-name
+    fi
 ```
 
 ## 固件信息
