@@ -54,8 +54,6 @@ jobs:
           BUILD_TIMESTAMP=$(date +"%Y%m%d%H%M")
           ARTIFACT_NAME="${{ inputs.source_name }}-${{ inputs.profile }}-${BUILD_DATE}"
           RELEASE_TAG="v${BUILD_DATE}-${BUILD_TIMESTAMP}"
-          # Derive a short repo hash for cache scoping
-          REPO_HASH=$(echo -n "${{ inputs.source_repo_url }}" | sha256sum | cut -c1-12)
 
           echo "BUILD_DATE=${BUILD_DATE}" >> "$GITHUB_ENV"
           echo "BUILD_TIMESTAMP=${BUILD_TIMESTAMP}" >> "$GITHUB_ENV"
@@ -65,7 +63,6 @@ jobs:
           echo "SOURCE_REPO_BRANCH=${{ inputs.source_branch }}" >> "$GITHUB_ENV"
           echo "SOURCE_NAME=${{ inputs.source_name }}" >> "$GITHUB_ENV"
           echo "PROFILE=${{ inputs.profile }}" >> "$GITHUB_ENV"
-          echo "REPO_HASH=${REPO_HASH}" >> "$GITHUB_ENV"
 
       - name: Free disk space
         run: |
@@ -104,17 +101,17 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /workdir/openwrt/dl
-          key: dl-${{ inputs.profile }}-${{ env.REPO_HASH }}-${{ inputs.source_branch }}
+          key: dl-${{ inputs.profile }}-${{ inputs.source_branch }}
           restore-keys: |
-            dl-${{ inputs.profile }}-${{ env.REPO_HASH }}-${{ inputs.source_branch }}-
+            dl-${{ inputs.profile }}-${{ inputs.source_branch }}-
 
       - name: Restore ccache
         uses: actions/cache@v4
         with:
           path: /workdir/openwrt/.ccache
-          key: ccache-${{ inputs.profile }}-${{ env.REPO_HASH }}-${{ inputs.source_branch }}-${{ hashFiles(format('profiles/{0}/config', inputs.profile)) }}
+          key: ccache-${{ inputs.profile }}-${{ inputs.source_branch }}-${{ hashFiles(format('profiles/{0}/config', inputs.profile)) }}
           restore-keys: |
-            ccache-${{ inputs.profile }}-${{ env.REPO_HASH }}-${{ inputs.source_branch }}-
+            ccache-${{ inputs.profile }}-${{ inputs.source_branch }}-
 
       # ── Phase 4: Feeds & Third-party Packages ────────────────────
       - name: Setup third-party feeds (ddnsto + mosdns + geodata)
