@@ -251,10 +251,10 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           KEEP=5
-          gh release list --limit 100 --json tagName --jq '.[].tagName' | \
+          gh release list --limit 100 --order desc --json tagName --jq '.[].tagName' | \
             tail -n +$((KEEP+1)) | \
             while read -r TAG; do
-              gh release delete "$TAG" --yes --cleanup-tag
+              gh release delete "$TAG" --yes --cleanup-tag || true
             done
 
       # ── Phase 9: Cleanup ────────────────────────────────────────
@@ -264,7 +264,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           KEEP_RUNS=5
-          gh run list --limit 100 --json databaseId --jq '.[].databaseId' | \
+          gh run list --limit 100 --status completed --json databaseId --jq '.[].databaseId' | \
             tail -n +$((KEEP_RUNS+1)) | \
             while read -r RUN_ID; do
               gh run delete "$RUN_ID" || true
