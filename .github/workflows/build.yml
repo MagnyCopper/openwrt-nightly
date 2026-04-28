@@ -27,11 +27,6 @@ on:
         required: false
         type: boolean
         default: false
-      ssh_debug:
-        description: 'Enable SSH debugging via tmate'
-        required: false
-        type: boolean
-        default: false
 
 env:
   TZ: Asia/Shanghai
@@ -42,6 +37,7 @@ jobs:
     runs-on: ubuntu-22.04
     permissions:
       contents: write
+      actions: write
 
     steps:
       # ── Phase 1: Checkout & Environment ──────────────────────────
@@ -160,15 +156,7 @@ jobs:
           # Merge shared packages (skip comments and blank lines)
           grep -v '^\s*#' "${GITHUB_WORKSPACE}/configs/packages.conf" | grep -v '^\s*$' >> .config
 
-      # ── Phase 6: SSH Debug ──────────────────────────────────────
-      - name: SSH debug
-        uses: mxschmitt/action-tmate@v3
-        if: ${{ inputs.ssh_debug }}
-        timeout-minutes: 30
-        with:
-          limit-access-to-actor: true
-
-      # ── Phase 7: Build ──────────────────────────────────────────
+      # ── Phase 6: Build ──────────────────────────────────────────
       - name: Download sources
         working-directory: /workdir/openwrt
         run: |
@@ -201,7 +189,7 @@ jobs:
             | sed -r 's/.*DEVICE_(.*)=y/\1/' > DEVICE_NAME
           echo "DEVICE_NAME=_$(cat DEVICE_NAME 2>/dev/null || echo unknown)" >> "$GITHUB_ENV"
 
-      # ── Phase 8: Collect & Publish ──────────────────────────────
+      # ── Phase 7: Collect & Publish ──────────────────────────────
       - name: Collect firmware
         if: ${{ success() }}
         working-directory: /workdir/openwrt
@@ -249,31 +237,38 @@ jobs:
 
       - name: Publish to GitHub Releases
         if: ${{ success() && inputs.publish }}
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ env.RELEASE_TAG }}
-          name: "${{ env.SOURCE_NAME }} ${{ inputs.profile }} (${{ env.BUILD_DATE }})"
-          body_path: release-body.md
-          files: ${{ env.FIRMWARE_DIR }}/*
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${RELEASE_TAG}" \
+            --title "${SOURCE_NAME} ${PROFILE} (${BUILD_DATE})" \
+            --notes-file release-body.md \
+            "${FIRMWARE_DIR}"/*
 
       - name: Prune old releases
         if: ${{ success() && inputs.publish }}
-        uses: dev-drprasad/delete-older-releases@v0.3.4
-        with:
-          keep_latest: 5
-          delete_tags: true
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          KEEP=5
+          gh release list --limit 100 --json tagName --jq '.[].tagName' | \
+            tail -n +$((KEEP+1)) | \
+            while read -r TAG; do
+              gh release delete "$TAG" --yes --cleanup-tag
+            done
 
       # ── Phase 9: Cleanup ────────────────────────────────────────
       - name: Prune old workflow runs
         if: ${{ !cancelled() }}
-        uses: Mattraks/delete-workflow-runs@v2
-        with:
-          retain_days: 7
-          keep_minimum_runs: 5
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          KEEP_RUNS=5
+          gh run list --limit 100 --json databaseId --jq '.[].databaseId' | \
+            tail -n +$((KEEP_RUNS+1)) | \
+            while read -r RUN_ID; do
+              gh run delete "$RUN_ID" || true
+            done
 
       - name: Disk usage
         if: ${{ !cancelled() }}

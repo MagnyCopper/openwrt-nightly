@@ -1,14 +1,14 @@
 # Build artifacts
 firmware/
 
+# GitHub Actions logs
+build-log*.txt
+run-logs/
+run-logs.zip
+
 # Agent tools
 .playwright-mcp/
 .sisyphus/
-
-# GitHub Actions logs
-run-logs/
-build-log*.txt
-run-logs.zip
 
 # OS files
 .DS_Store
@@ -22,5 +22,5 @@ Desktop.ini
 .vscode/
 .idea/
 
-# OpenWrt build (local)
-openwrt/
+# Misc
+1.txt

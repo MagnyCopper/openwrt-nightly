@@ -11,11 +11,6 @@ on:
         required: false
         type: string
         default: 'r2s'
-      ssh_debug:
-        description: 'Enable SSH debugging'
-        required: false
-        type: boolean
-        default: false
 
 jobs:
   build:
@@ -24,5 +19,4 @@ jobs:
     with:
       profile: ${{ inputs.profile || 'r2s' }}
       publish: true
-      ssh_debug: ${{ inputs.ssh_debug || false }}
     secrets: inherit

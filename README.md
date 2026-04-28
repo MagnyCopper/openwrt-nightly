@@ -1,46 +1,70 @@
 # OpenWrt Nightly Build
 
-基于 GitHub Actions 的 ImmortalWrt 固件自动构建系统，专为 NanoPi R2S 优化。
+基于 GitHub Actions 的 OpenWrt 系列固件自动构建系统。支持多源码（OpenWrt / ImmortalWrt / OpenRouter）、多设备（x86 / R2S / R4S），源码与设备可自由组合。
+
+## 设计目标
+
+| 目标 | 说明 |
+|------|------|
+| **多源码** | 支持 OpenWrt 官方、ImmortalWrt、OpenRouter 等，通过 workflow 参数切换 |
+| **多设备** | 支持 x86 软路由、NanoPi R2S/R4S 等，源码+设备自由组合 |
+| **同源共享插件** | 同一源码下所有设备共享 `configs/packages.conf`，允许个别设备有少量差异 |
+| **并行构建** | 一次触发通过 GitHub Actions matrix 同时构建所有设备 |
+| **简单扩展** | 添加新设备只需创建 `profiles/<device>/config`，无需修改 workflow |
+
+## 支持源码
+
+| 源码 | 仓库 | 分支 | 状态 |
+|------|------|------|------|
+| ImmortalWrt | `immortalwrt/immortalwrt` | `openwrt-24.10` | ✅ 已验证 |
+| OpenWrt 官方 | `openwrt/openwrt` | `v24.10.x` | ⚠️ 待验证 |
+| 其他 fork | 任意 Git URL | 任意分支 | ⚠️ 待验证 |
 
 ## 支持设备
 
 | 设备 | SoC | 架构 | 状态 |
 |------|-----|------|------|
 | NanoPi R2S | RK3328 | rockchip/armv8 | ✅ 已支持 |
+| x86 软路由 | — | x86/64 | ⚠️ 待添加 |
+| NanoPi R4S | RK3399 | rockchip/armv8 | ⚠️ 待添加 |
 
 ## 使用方法
 
 ### 自动构建
 
-- **主分支 (main)**: 每周日自动构建并发布到 [Releases](../../releases)
-- **开发分支 (dev)**: 推送到 `profiles/`、`configs/` 或 workflow 文件时自动构建（仅 Artifacts）
+- **主分支 (main)**: 每周日自动构建所有设备并发布到 [Releases](../../releases)
+- **开发分支 (dev)**: 推送到 `profiles/`、`configs/` 或 workflow 文件时自动构建所有设备（仅 Artifacts）
 
 ### 手动触发
 
 1. 进入 Actions 页面
 2. 选择 **Dev Build** 或 **Nightly Release** workflow
-3. 点击 "Run workflow"
+3. 点击 "Run workflow"，可选指定设备和源码
 
 ## 目录结构
 
 ```
 configs/
-  packages.conf          # 所有设备共享的插件列表
+  packages.conf          # 所有设备共享的插件列表（同源码下）
 
 profiles/
-  r2s/
-    config               # R2S 硬件配置 (target, 分区, USB 网卡驱动)
-    files/                # 自定义固件文件 (开机自动应用)
+  r2s/                   # NanoPi R2S
+    config               # 硬件配置 (target, 分区, USB 网卡驱动)
+    files/               # 自定义固件文件 (开机自动应用)
       etc/uci-defaults/
         80-packet-steering  # RPS 多核网络负载均衡
+  x86/                   # x86 软路由（待添加）
+    config
+  r4s/                   # NanoPi R4S（待添加）
+    config
 
 .github/workflows/
-  build.yml              # 可复用构建工作流 (核心引擎，无外部脚本)
+  build.yml              # 可复用构建工作流 (核心引擎，零外部脚本)
   dev-build.yml          # dev 分支触发器
   nightly-release.yml    # main 分支定时发布
 ```
 
-## 已启用插件
+## 已启用插件（ImmortalWrt R2S）
 
 ### 主题
 
@@ -120,17 +144,18 @@ R2S 的 4 核 Cortex-A53 在默认配置下，所有网络中断都由 CPU0 处�
 
 ### 构建优化
 
+- 仅使用官方 `actions/*` 包，Release 和清理使用 GitHub CLI (`gh`)
 - 仅缓存 `dl/`（源码包）和 `.ccache`（编译缓存），避免工具链缓存与新源码不兼容
 - 三级重试: 并行编译 → 单线程 → 详细单线程日志
 - 自动清理 Runner 磁盘空间
-- 所有构建逻辑内联于 `build.yml`，无外部脚本依赖
+- 所有构建逻辑内联于 `build.yml`，零外部脚本依赖
 
 ## 添加新设备
 
 1. 创建 `profiles/<device>/config` — 硬件配置（须包含 `CONFIG_CCACHE=y`）
 2. 可选: 添加 `files/` (自定义固件文件)
-3. 在 `build.yml` Phase 6 中添加设备专属的第三方软件源逻辑
-4. 更新 `dev-build.yml` 和 `nightly-release.yml` 的默认 profile
+3. 在 `build.yml` Phase 6 中添加设备专属的第三方软件源逻辑（如有需要）
+4. 更新 `dev-build.yml` 和 `nightly-release.yml` 的 matrix 列表
 
 ## 添加第三方软件源
 
