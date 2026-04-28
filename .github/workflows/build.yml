@@ -212,13 +212,13 @@ jobs:
       - name: Generate release body
         if: ${{ success() && inputs.publish }}
         run: |
-          cat > release-body.md <<EOF
-          ## ${SOURCE_NAME} Firmware for ${{ inputs.profile }}
+          cat > release-body.md <<HEREDOC
+          ## ${{ inputs.source_name }} Firmware for ${{ inputs.profile }}
 
           | Item | Value |
           |------|-------|
-          | Source | ${SOURCE_NAME} |
-          | Branch/Tag | ${SOURCE_REPO_BRANCH} |
+          | Source | ${{ inputs.source_name }} |
+          | Branch/Tag | ${{ inputs.source_branch }} |
           | Device | ${{ inputs.profile }} |
           | Build Date | ${BUILD_DATE} |
           | Target | rockchip/armv8 |
@@ -233,7 +233,8 @@ jobs:
           - Address: http://192.168.1.1 or http://immortalwrt.lan
           - Username: root
           - Password: *(none)*
-          EOF
+          HEREDOC
+          sed -i 's/^          //' release-body.md
 
       - name: Publish to GitHub Releases
         if: ${{ success() && inputs.publish }}
@@ -257,7 +258,7 @@ jobs:
               gh release delete "$TAG" --yes --cleanup-tag || true
             done
 
-      # ── Phase 9: Cleanup ────────────────────────────────────────
+      # ── Phase 8: Cleanup ─────────────────────────────────────────
       - name: Prune old workflow runs
         if: ${{ !cancelled() }}
         env:
