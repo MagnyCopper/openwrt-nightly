@@ -8,7 +8,7 @@
 
 | 需求 | 说明 | 当前状态 |
 |------|------|---------|
-| **多源码支持** | 支持 OpenWrt / ImmortalWrt / OpenRouter 等不同源码，可自由切换 | ✅ 已实现（workflow input） |
+| **多源码支持** | 支持 OpenWrt / ImmortalWrt / OpenRouter 等不同源码，可自由切换 | ⚠️ 架构就绪（build.yml input），仅 ImmortalWrt 已验证 |
 | **多设备支持** | 支持 x86 / R2S / R4S 等不同设备，源码+设备可自由组合 | ⚠️ 架构就绪，当前仅 R2S |
 | **同源码共享插件** | 同一源码下不同设备共享插件列表（`packages.conf`），允许个别设备有少量差异 | ✅ 已实现 |
 | **并行矩阵构建** | 一次触发同时构建所有设备，利用 GitHub Actions matrix 策略 | ⚠️ 待实现 |
@@ -22,7 +22,7 @@
 ### 待实现功能
 
 1. **矩阵构建**：`dev-build.yml` / `nightly-release.yml` 使用 `strategy.matrix` 并行构建多设备
-2. **多源码配置**：支持在 workflow 中选择不同源码（如 OpenWrt 官方 vs ImmortalWrt）
+2. **多源码触发器**：`dev-build.yml` / `nightly-release.yml` 暴露 `source_repo_url` 等参数，支持手动选择源码
 3. **设备级插件差异**：允许 `profiles/<device>/packages.conf` 覆盖共享插件列表中的个别项
 4. **Release 按设备分包**：不同设备的固件发布到同一 Release，按设备名区分
 
