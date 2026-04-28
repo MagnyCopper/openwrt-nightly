@@ -137,10 +137,11 @@ jobs:
           if [ -f /tmp/.golang-override ] && [ -d feeds/packages/lang/golang ]; then
             rm -rf feeds/packages/lang/golang
             git clone --depth=1 -b 25.x https://github.com/sbwml/packages_lang_golang.git feeds/packages/lang/golang
+            ./scripts/feeds update -i packages
             echo "Overrode golang toolchain with sbwml 25.x (Go 1.25+)"
           fi
 
-          ./scripts/feeds install -a -f
+          ./scripts/feeds install -a
 
       # ── Phase 5: Configuration ──────────────────────────────────
       - name: Load device configuration
