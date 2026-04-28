@@ -12,7 +12,7 @@ The workflow is a reusable workflow (`workflow_call`) called by:
 
 | Phase | Step | What Happens |
 |-------|------|-------------|
-| 1 | Checkout + Env | Set BUILD_DATE, ARTIFACT_NAME, RELEASE_TAG, REPO_HASH |
+| 1 | Checkout + Env | Set BUILD_DATE, ARTIFACT_NAME, RELEASE_TAG |
 | 2 | Free disk | Remove dotnet, android, CodeQL, docker images |
 | 3 | Install deps | apt-get install build dependencies inline |
 | 4 | Clone source | `git clone --depth=1` into `/workdir/openwrt` |
@@ -30,10 +30,8 @@ The workflow is a reusable workflow (`workflow_call`) called by:
 
 | Cache | Path | Key | Purpose |
 |-------|------|-----|---------|
-| dl | `/workdir/openwrt/dl` | `dl-{profile}-{repo_hash}-{branch}` | Downloaded source tarballs |
-| ccache | `/workdir/openwrt/.ccache` | `ccache-{profile}-{repo_hash}-{branch}-{config_hash}` | Compilation cache |
-
-**Cache scoping includes source repo hash** to prevent cross-repo cache collisions.
+| dl | `/workdir/openwrt/dl` | `dl-{profile}-{branch}` | Downloaded source tarballs |
+| ccache | `/workdir/openwrt/.ccache` | `ccache-{profile}-{branch}-{config_hash}` | Compilation cache |
 
 **CCACHE_DIR is explicitly set** to `/workdir/openwrt/.ccache` before compilation to ensure the cache directory matches the `actions/cache` path.
 
