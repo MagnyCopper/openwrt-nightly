@@ -147,12 +147,44 @@ with:
 - **Golang**: mosdns v5 needs Go 1.25+ → use `sbwml/packages_lang_golang` branch `25.x`; must `feeds install -f -p packages golang` after override to refresh symlink
 - **Action Versions**: Pin all `uses:` to specific tags (not `@master`/`@main`)
 
-## 7. Adding New Devices
+## 7. Adding New Devices & Sources
+
+### Adding a New Device
 
 1. Create `profiles/<device>/config` with target, device, and `CONFIG_CCACHE=y`
-2. Optionally add `files/` for custom overlay
+   - Use `make menuconfig` in the source repo to generate the correct config
+   - Example (R4S): `CONFIG_TARGET_rockchip=y` + `CONFIG_TARGET_rockchip_armv8=y` + `CONFIG_TARGET_rockchip_armv8_DEVICE_friendlyarm_nanopi-r4s=y`
+2. Optionally add `profiles/<device>/files/` for custom overlay (uci-defaults scripts, config files)
 3. Add profile-specific third-party feed logic in `build.yml` Phase 6 if needed
-4. Update `dev-build.yml` / `biweekly-build.yml` matrix to include new device
+4. Test with manual trigger: `gh workflow run dev-build.yml --ref dev -f profile=<device>`
+5. (Future) Add to matrix in `dev-build.yml` / `biweekly-build.yml`
+
+### Switching/Adding Source Repos
+
+Source parameters are workflow inputs — **no changes to `build.yml` needed**:
+
+```bash
+# Example: build with official OpenWrt
+gh workflow run dev-build.yml --ref dev \
+  -f source_repo_url='https://github.com/openwrt/openwrt.git' \
+  -f source_branch='v24.10.x' \
+  -f source_name='openwrt'
+```
+
+**Caveats when switching sources:**
+- Different sources have different default feeds → `packages.conf` may need adjustment
+- Third-party feed compatibility varies by source → test manually first
+- Profile configs may need different kernel modules or drivers depending on the source
+
+### Third-party Feed Patterns
+
+Three patterns available (all inlined in `build.yml` Phase 6):
+
+| Pattern | When to Use | Example |
+|---------|-------------|---------|
+| `src-git` feed entry | Multi-package repos, need dependency resolution | `echo "src-git mosdns https://github.com/sbwml/luci-app-mosdns.git;v5" >> feeds.conf.default` |
+| `git clone` to `package/` | Standalone data packages, no feed deps needed | `git clone --depth=1 https://github.com/sbwml/v2ray-geodata.git package/v2ray-geodata` |
+| Feed override + reinstall | Replace built-in packages with custom versions | `rm -rf feeds/packages/lang/golang` → clone replacement → `feeds update -i packages` → `feeds install -f -p packages golang` |
 
 ## 8. Debugging Failed Builds
 

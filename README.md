@@ -141,24 +141,103 @@ R2S 的 4 核 Cortex-A53 在默认配置下，所有网络中断都由 CPU0 处�
 
 ### 添加新设备
 
-1. 创建 `profiles/<device>/config` — 硬件配置（须包含 `CONFIG_CCACHE=y`）
-2. 可选: 添加 `files/` (自定义固件文件)
-3. 在 `build.yml` 中添加设备专属的第三方软件源逻辑（如有需要）
+以添加 NanoPi R4S 为例：
 
-### 切换源码
+**1. 创建设备配置** `profiles/r4s/config`
 
-`build.yml` 接受 `source_repo_url`、`source_branch`、`source_name` 参数，可在调用时指定不同源码。
+```ini
+CONFIG_TARGET_rockchip=y
+CONFIG_TARGET_rockchip_armv8=y
+CONFIG_TARGET_rockchip_armv8_DEVICE_friendlyarm_nanopi-r4s=y
+CONFIG_CCACHE=y
+```
+
+> `CONFIG_CCACHE=y` 是必选项。其余配置参考对应源码的 `make menuconfig` 输出。
+
+**2.（可选）添加自定义固件文件**
+
+```
+profiles/r4s/files/
+  etc/uci-defaults/
+    99-custom-settings    # 首次启动自动执行的 uci 脚本
+```
+
+**3.（可选）添加设备专属第三方软件源**
+
+在 `build.yml` 的 "Setup third-party feeds" 步骤中添加 profile 条件：
+
+```yaml
+if [ "$PROFILE" = "r4s" ]; then
+  echo "src-git feedname https://github.com/user/repo.git" >> feeds.conf.default
+fi
+```
+
+**4. 手动触发测试**
+
+```bash
+gh workflow run dev-build.yml --ref dev -f profile=r4s
+```
+
+**5.（未来）加入矩阵构建**
+
+待矩阵构建实现后，在 `dev-build.yml` / `biweekly-build.yml` 的 matrix 中添加 `r4s` 即可自动构建。
+
+### 切换/添加源码
+
+`build.yml` 通过 workflow inputs 实现源码无关设计，**无需修改 `build.yml` 本身**。只需在调用时传入不同参数。
+
+**手动指定源码触发构建：**
+
+```bash
+# OpenWrt 官方源码
+gh workflow run dev-build.yml --ref dev \
+  -f source_repo_url='https://github.com/openwrt/openwrt.git' \
+  -f source_branch='v24.10.x' \
+  -f source_name='openwrt'
+
+# 其他 fork
+gh workflow run dev-build.yml --ref dev \
+  -f source_repo_url='https://github.com/username/custom-openwrt.git' \
+  -f source_branch='main' \
+  -f source_name='custom'
+```
+
+**注意事项：**
+- 不同源码的默认 feeds 和软件包不同，`packages.conf` 中的插件可能需要调整
+- 不同源码可能需要不同的第三方软件源逻辑（在 `build.yml` Phase 6 中按 profile 或 source_name 条件添加）
+- 首次使用新源码建议先手动触发测试，确认构建通过后再用于定时构建
 
 ### 添加第三方软件源
 
-第三方软件源配置直接内联于 `build.yml` 中，按 profile 条件执行：
+第三方软件源配置直接内联于 `build.yml` Phase 6，按 profile 条件执行。支持三种方式：
+
+**方式一：添加为正式 feed（推荐）**
+
+适用于包含多个软件包的源，依赖关系由 feed 系统自动处理：
 
 ```yaml
-- name: Setup third-party feeds
-  run: |
-    if [ "$PROFILE" = "your-device" ]; then
-      echo "src-git feedname https://github.com/user/repo.git" >> feeds.conf.default
-    fi
+echo "src-git feedname https://github.com/user/repo.git;branch" >> feeds.conf.default
+# 在 feeds install 阶段安装
+./scripts/feeds install -f -p feedname package_name
+```
+
+**方式二：clone 到 package/ 目录**
+
+适用于独立的数据文件包或不需要 feed 依赖解析的简单包：
+
+```yaml
+git clone --depth=1 https://github.com/user/repo.git package/repo-name
+```
+
+**方式三：覆盖已有 feed 中的包**
+
+适用于需要用自定义版本替换源码自带包的场景（如 golang 工具链升级）：
+
+```yaml
+rm -rf feeds/packages/lang/golang
+git clone --depth=1 -b 25.x https://github.com/user/golang.git feeds/packages/lang/golang
+./scripts/feeds update -i packages
+./scripts/feeds install -f -p packages golang
 ```
 
 ## 固件信息
