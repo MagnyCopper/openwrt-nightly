@@ -1,9 +1,9 @@
-name: Weekly Release Build
+name: Biweekly Build
 
 on:
   schedule:
-    # Every Sunday at 04:00 HKT (Saturday 20:00 UTC)
-    - cron: '0 20 * * 6'
+    # Every 2 weeks, Sunday at 04:00 HKT (Saturday 20:00 UTC)
+    - cron: '0 20 1,15 * *'
   workflow_dispatch:
     inputs:
       profile:
@@ -14,12 +14,10 @@ on:
 
 jobs:
   build:
-    name: Nightly Build (${{ inputs.profile || 'r2s' }})
+    name: Biweekly Build (${{ inputs.profile || 'r2s' }})
     uses: ./.github/workflows/build.yml
     permissions:
-      contents: write
       actions: write
     with:
       profile: ${{ inputs.profile || 'r2s' }}
-      publish: true
     secrets: inherit

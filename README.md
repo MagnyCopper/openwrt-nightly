@@ -6,26 +6,30 @@
 
 | 功能 | 状态 |
 |------|------|
-| ImmortalWrt + R2S 构建 | ✅ 已实现 |
+| ImmortalWrt + R2S 构建 | ✅ 已验证 |
 | 多源码切换（workflow input） | ✅ 架构就绪，仅 ImmortalWrt 已验证 |
 | 多设备支持（profile 系统） | ✅ 架构就绪，仅 R2S 已实现 |
 | 并行矩阵构建 | ⚠️ 待实现 |
 | dev 推送 → Artifacts | ✅ 已实现 |
-| main 定时 → Releases | ✅ 已实现 |
+| main 双周定时 → Artifacts | ✅ 已实现 |
 | 仅官方 Actions | ✅ 已实现 |
 
 ## 使用方法
 
 ### 自动构建
 
-- **主分支 (main)**: 每周日自动构建并发布到 [Releases](../../releases)
-- **开发分支 (dev)**: 推送到 `profiles/`、`configs/` 或 workflow 文件时自动构建（仅 Artifacts）
+- **开发分支 (dev)**: 推送到 `profiles/`、`configs/` 或 workflow 文件时自动构建，产物保留 14 天
+- **主分支 (main)**: 每 2 周自动构建，产物保留 14 天
 
 ### 手动触发
 
 1. 进入 Actions 页面
-2. 选择 **Dev Build** 或 **Nightly Release** workflow
+2. 选择 **Dev Build** 或 **Biweekly Build** workflow
 3. 点击 "Run workflow"，可选指定设备 profile
+
+### 下载固件
+
+构建完成后，在 Actions 页面对应的 workflow run 中下载 Artifacts（包含固件镜像、sha256sums、config.buildinfo 和 manifest）。
 
 ## 目录结构
 
@@ -43,7 +47,7 @@ profiles/
 .github/workflows/
   build.yml              # 可复用构建工作流 (核心引擎，仅官方 actions，零外部脚本)
   dev-build.yml          # dev 分支触发器
-  nightly-release.yml    # main 分支定时发布
+  biweekly-build.yml     # main 分支双周定时触发
 ```
 
 ## 已启用插件（ImmortalWrt R2S）
@@ -126,11 +130,12 @@ R2S 的 4 核 Cortex-A53 在默认配置下，所有网络中断都由 CPU0 处�
 
 ### 构建优化
 
-- 仅使用官方 `actions/*` 包（checkout、cache、upload-artifact），Release 和清理使用 GitHub CLI (`gh`)
+- 仅使用官方 `actions/*` 包（checkout、cache、upload-artifact），清理使用 GitHub CLI (`gh`)
 - 仅缓存 `dl/`（源码包）和 `.ccache`（编译缓存），避免工具链缓存与新源码不兼容
 - 三级重试: 并行编译 → 单线程 → 详细单线程日志
 - 自动清理 Runner 磁盘空间
 - 所有构建逻辑内联于 `build.yml`，零外部脚本依赖
+- 构建产物包含 `config.buildinfo` 和 `manifest`，便于审计
 
 ## 扩展指南
 

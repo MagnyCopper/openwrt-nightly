@@ -21,9 +21,7 @@ jobs:
     name: Dev Build (${{ inputs.profile || 'r2s' }})
     uses: ./.github/workflows/build.yml
     permissions:
-      contents: write
       actions: write
     with:
       profile: ${{ inputs.profile || 'r2s' }}
-      publish: false
     secrets: inherit

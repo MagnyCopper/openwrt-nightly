@@ -12,19 +12,18 @@
 | **多设备支持** | 支持 x86 / R2S / R4S 等不同设备，源码+设备可自由组合 | ⚠️ 架构就绪，当前仅 R2S |
 | **同源码共享插件** | 同一源码下不同设备共享插件列表（`packages.conf`），允许个别设备有少量差异 | ✅ 已实现 |
 | **并行矩阵构建** | 一次触发同时构建所有设备，利用 GitHub Actions matrix 策略 | ⚠️ 待实现 |
-| **统一触发** | dev 推送 → 所有设备并行构建 Artifacts；main 定时 → 所有设备并行发布 Release | ⚠️ 待实现矩阵 |
+| **统一触发** | dev 推送 → 所有设备并行构建 Artifacts；main 定时 → 所有设备并行构建 Artifacts | ⚠️ 待实现矩阵 |
 | **添加设备要简单** | 只需添加 `profiles/<device>/config`，不改 workflow | ✅ 已实现 |
 | **零外部脚本** | 所有构建逻辑内联于 `build.yml`，不使用外部 shell 脚本 | ✅ 已实现 |
-| **仅官方 Actions** | 仅使用 `actions/*` 官方包，Release/清理操作使用 `gh` CLI | ✅ 已实现 |
+| **仅官方 Actions** | 仅使用 `actions/*` 官方包，清理操作使用 `gh` CLI | ✅ 已实现 |
 | **合理拆分步骤** | 构建流程分为多个阶段，步骤清晰 | ✅ 已实现 |
 | **优化缓存** | 仅缓存 `dl/` + `.ccache`（CCACHE_DIR 显式设置），clone 后恢复 | ✅ 已实现 |
 
 ### 待实现功能
 
-1. **矩阵构建**：`dev-build.yml` / `nightly-release.yml` 使用 `strategy.matrix` 并行构建多设备
-2. **多源码触发器**：`dev-build.yml` / `nightly-release.yml` 暴露 `source_repo_url` 等参数，支持手动选择源码
+1. **矩阵构建**：`dev-build.yml` / `biweekly-build.yml` 使用 `strategy.matrix` 并行构建多设备
+2. **多源码触发器**：`dev-build.yml` / `biweekly-build.yml` 暴露 `source_repo_url` 等参数，支持手动选择源码
 3. **设备级插件差异**：允许 `profiles/<device>/packages.conf` 覆盖共享插件列表中的个别项
-4. **Release 按设备分包**：不同设备的固件发布到同一 Release，按设备名区分
 
 ### 设计原则
 
@@ -32,7 +31,7 @@
 - **源码无关**：源码参数通过 workflow input 传入，profile 不绑定源码
 - **插件分层**：共享层 `configs/packages.conf` + 设备层 `profiles/<device>/config`
 - **声明式配置**：尽量用 YAML 原生能力，不写脚本
-- **仅官方 Actions**：仅使用 `actions/*` 官方包，Release/清理用 `gh` CLI
+- **仅官方 Actions**：仅使用 `actions/*` 官方包，清理用 `gh` CLI
 
 ---
 
@@ -45,27 +44,27 @@ Only official `actions/*` are used:
 - `actions/cache@v4` — dl/ and .ccache caching
 - `actions/upload-artifact@v4` — firmware artifact upload
 
-Release/清理操作使用 GitHub CLI (`gh`)，无需第三方 action。
+Workflow run cleanup uses GitHub CLI (`gh`), no third-party action.
 
 The workflow is a reusable workflow (`workflow_call`) called by:
-- `dev-build.yml` → push to `dev` → artifacts only
-- `nightly-release.yml` → cron on `main` → GitHub Releases
+- `dev-build.yml` → push to `dev` → artifacts (14-day retention)
+- `biweekly-build.yml` → cron on `main` every 2 weeks → artifacts (14-day retention)
 
 ### Build Phases
 
 | Phase | Step | What Happens |
 |-------|------|-------------|
-| 1 | Checkout + Env | Set BUILD_DATE, ARTIFACT_NAME, RELEASE_TAG |
+| 1 | Checkout + Env | Set BUILD_DATE, ARTIFACT_NAME |
 | 2 | Free disk | Remove dotnet, android, CodeQL, docker images |
 | 3 | Install deps | apt-get install build dependencies inline |
 | 4 | Clone source | `git clone --depth=1` into `/workdir/openwrt` |
 | 5 | Restore cache | **After clone** — restore `dl/` and `.ccache` (with CCACHE_DIR) |
 | 6 | Third-party feeds | Inline: profile-gated feed setup (ddnsto, mosdns, geodata, etc.) |
-| 7 | Feeds update/install | `feeds update -a` → source-specific overrides → `feeds install -a -f` |
+| 7 | Feeds update/install | `feeds update -a` → golang override → `feeds install -a` |
 | 8 | Load config | Device config + shared packages.conf merge → `.config` |
-| 9 | Download sources | `make defconfig && make download` |
+| 9 | Download sources | `make defconfig && make download` + cleanup bad archives |
 | 10 | Compile | Parallel → single thread → verbose retry cascade |
-| 11 | Collect & publish | Extract firmware, upload artifact / `gh release create` |
+| 11 | Collect & upload | Firmware images + metadata → upload artifact |
 
 ## 2. Cache Strategy
 
@@ -73,7 +72,7 @@ The workflow is a reusable workflow (`workflow_call`) called by:
 
 | Cache | Path | Key | Purpose |
 |-------|------|-----|---------|
-| dl | `/workdir/openwrt/dl` | `dl-{profile}-{branch}` | Downloaded source tarballs |
+| dl | `/workdir/openwrt/dl` | `dl-{profile}-{branch}` | Downloaded source tarballs + Go module cache |
 | ccache | `/workdir/openwrt/.ccache` | `ccache-{profile}-{branch}-{config_hash}` | Compilation cache |
 
 **CCACHE_DIR is explicitly set** to `/workdir/openwrt/.ccache` before compilation to ensure the cache directory matches the `actions/cache` path.
@@ -103,6 +102,12 @@ profiles/<device>/
 ### Third-party feeds
 Third-party feed setup is inlined in `build.yml` Phase 6, profile-gated. No hooks or scripts needed.
 
+**R2S 第三方软件源：**
+- ddnsto: `src-git ddnsto` (linkease/nas-packages) + `src-git ddnsto_luci` (linkease/nas-packages-luci)
+- mosdns v5: `src-git mosdns` (sbwml/luci-app-mosdns;v5) — 作为正式 feed 引入
+- v2ray-geodata: `git clone` 到 `package/v2ray-geodata`（数据文件，无 golang 依赖）
+- golang override: `sbwml/packages_lang_golang` branch `25.x`（mosdns v5 需要 Go 1.25+）
+
 ## 4. Source Configuration
 
 Source parameters are workflow inputs (source-agnostic design):
@@ -125,7 +130,7 @@ with:
 |------|---------|
 | `.github/workflows/build.yml` | **核心引擎.** 单一可复用工作流，零脚本 |
 | `.github/workflows/dev-build.yml` | Dev 触发器 (push to dev) |
-| `.github/workflows/nightly-release.yml` | Release 触发器 (cron on main) |
+| `.github/workflows/biweekly-build.yml` | Main 双周触发器 (cron + manual) |
 | `configs/packages.conf` | 共享插件列表（同源码下所有设备共用） |
 | `profiles/*/config` | 设备硬件配置 |
 | `profiles/*/files/` | 固件 overlay 文件 (可选) |
@@ -134,11 +139,12 @@ with:
 
 - **Reusable Workflow Inputs**: Use `inputs.*` context, NOT `github.event.inputs.*`
 - **Cache Before Clone**: NEVER restore cache before `git clone`. Always after.
-- **Feed Override Order**: inline feed setup → feeds update → source-specific overrides → feeds install
+- **Feed Override Order**: inline feed setup → feeds update → golang override → feeds update -i packages → feeds install -f golang → feeds install -f mosdns → feeds install -a
+- **Download Cleanup**: Only delete small archive files (`*.tar.*`, `*.zip`, `*.gz`), NOT Go module source files which can be tiny (e.g. protobuf `editiondefaults.binpb` = 154 bytes)
 - **BOM Encoding**: All files must be UTF-8 WITHOUT BOM
 - **LF Line Endings**: Enforced via `.gitattributes`
 - **CCACHE_DIR**: Must be set explicitly; OpenWrt doesn't default to `.ccache` in source root
-- **Golang**: mosdns v5 needs Go 1.25+ → use `sbwml/packages_lang_golang` branch `25.x`
+- **Golang**: mosdns v5 needs Go 1.25+ → use `sbwml/packages_lang_golang` branch `25.x`; must `feeds install -f -p packages golang` after override to refresh symlink
 - **Action Versions**: Pin all `uses:` to specific tags (not `@master`/`@main`)
 
 ## 7. Adding New Devices
@@ -146,7 +152,7 @@ with:
 1. Create `profiles/<device>/config` with target, device, and `CONFIG_CCACHE=y`
 2. Optionally add `files/` for custom overlay
 3. Add profile-specific third-party feed logic in `build.yml` Phase 6 if needed
-4. Update `dev-build.yml` / `nightly-release.yml` matrix to include new device
+4. Update `dev-build.yml` / `biweekly-build.yml` matrix to include new device
 
 ## 8. Debugging Failed Builds
 
@@ -155,4 +161,5 @@ with:
 - If `No space left on device` → check disk cleanup step
 - If `golang` or `mosdns` build fails → check golang override ran after feeds update
 - If `v2dat` fails with `go >= 1.25.0` → golang 25.x override didn't apply
+- If `no required module provides package` → check download cleanup step didn't delete Go module files
 - To debug interactively: add `tmate` SSH step to build.yml temporarily (not included by default to avoid third-party deps)

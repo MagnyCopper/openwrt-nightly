@@ -22,11 +22,6 @@ on:
         required: false
         type: string
         default: 'immortalwrt'
-      publish:
-        description: 'Publish to GitHub Releases'
-        required: false
-        type: boolean
-        default: false
 
 env:
   TZ: Asia/Shanghai
@@ -36,7 +31,6 @@ jobs:
     name: Build ${{ inputs.profile }}
     runs-on: ubuntu-22.04
     permissions:
-      contents: write
       actions: write
 
     steps:
@@ -47,14 +41,10 @@ jobs:
       - name: Set build metadata
         run: |
           BUILD_DATE=$(date +"%Y.%m.%d")
-          BUILD_TIMESTAMP=$(date +"%Y%m%d%H%M")
           ARTIFACT_NAME="${{ inputs.source_name }}-${{ inputs.profile }}-${BUILD_DATE}"
-          RELEASE_TAG="v${BUILD_DATE}-${BUILD_TIMESTAMP}"
 
           echo "BUILD_DATE=${BUILD_DATE}" >> "$GITHUB_ENV"
-          echo "BUILD_TIMESTAMP=${BUILD_TIMESTAMP}" >> "$GITHUB_ENV"
           echo "ARTIFACT_NAME=${ARTIFACT_NAME}" >> "$GITHUB_ENV"
-          echo "RELEASE_TAG=${RELEASE_TAG}" >> "$GITHUB_ENV"
           echo "SOURCE_REPO_URL=${{ inputs.source_repo_url }}" >> "$GITHUB_ENV"
           echo "SOURCE_REPO_BRANCH=${{ inputs.source_branch }}" >> "$GITHUB_ENV"
           echo "SOURCE_NAME=${{ inputs.source_name }}" >> "$GITHUB_ENV"
@@ -224,55 +214,6 @@ jobs:
           name: ${{ env.ARTIFACT_NAME }}
           path: ${{ env.FIRMWARE_DIR }}/*
           retention-days: 14
-
-      - name: Generate release body
-        if: ${{ success() && inputs.publish }}
-        run: |
-          cat > release-body.md <<HEREDOC
-          ## ${{ inputs.source_name }} Firmware for ${{ inputs.profile }}
-
-          | Item | Value |
-          |------|-------|
-          | Source | ${{ inputs.source_name }} |
-          | Branch/Tag | ${{ inputs.source_branch }} |
-          | Device | ${{ inputs.profile }} |
-          | Build Date | ${BUILD_DATE} |
-          | Target | rockchip/armv8 |
-
-          ### Flash Instructions
-          1. Download the \`.img.gz\` file
-          2. Decompress to get \`.img\`
-          3. Flash to SD card using balenaEtcher or \`dd\`
-          4. Insert SD card into device and power on
-
-          ### Default Access
-          - Address: http://192.168.1.1 or http://immortalwrt.lan
-          - Username: root
-          - Password: *(none)*
-          HEREDOC
-          sed -i 's/^          //' release-body.md
-
-      - name: Publish to GitHub Releases
-        if: ${{ success() && inputs.publish }}
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release create "${RELEASE_TAG}" \
-            --title "${SOURCE_NAME} ${PROFILE} (${BUILD_DATE})" \
-            --notes-file release-body.md \
-            "${FIRMWARE_DIR}"/*
-
-      - name: Prune old releases
-        if: ${{ success() && inputs.publish }}
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          KEEP=5
-          gh release list --limit 100 --order desc --json tagName --jq '.[].tagName' | \
-            tail -n +$((KEEP+1)) | \
-            while read -r TAG; do
-              gh release delete "$TAG" --yes --cleanup-tag || true
-            done
 
       # ── Phase 8: Cleanup ─────────────────────────────────────────
       - name: Prune old workflow runs
