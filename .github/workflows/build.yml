@@ -206,9 +206,14 @@ jobs:
         working-directory: /workdir/openwrt
         run: |
           mkdir -p "${GITHUB_WORKSPACE}/firmware"
+          # Firmware images
           find bin/targets -type f \( -name "*.img.gz" -o -name "*.img" -o -name "*.bin" -o -name "*.itb" \) \
             -exec cp {} "${GITHUB_WORKSPACE}/firmware/" \;
           find bin/targets -name "sha256sums" -exec cp {} "${GITHUB_WORKSPACE}/firmware/" \;
+          # Build metadata for auditability
+          test -f .config && cp .config "${GITHUB_WORKSPACE}/firmware/config.buildinfo"
+          find bin/targets -name "manifest" -exec cp {} "${GITHUB_WORKSPACE}/firmware/manifest" \;
+          find bin/targets -name "*.buildinfo" -exec cp {} "${GITHUB_WORKSPACE}/firmware/" \;
           echo "FIRMWARE_DIR=${GITHUB_WORKSPACE}/firmware" >> "$GITHUB_ENV"
           ls -lh "${GITHUB_WORKSPACE}/firmware/"
 
