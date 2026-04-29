@@ -171,8 +171,10 @@ jobs:
         run: |
           make defconfig
           make download -j$(nproc)
-          find dl -size -1024c -exec ls -l {} \;
-          find dl -size -1024c -exec rm -f {} \;
+          # Only clean up suspiciously small archive files (failed downloads),
+          # NOT Go module source files which can legitimately be tiny
+          find dl -maxdepth 2 -size -1024c -type f \( -name "*.tar.*" -o -name "*.zip" -o -name "*.gz" -o -name "*.tgz" \) -exec ls -l {} \;
+          find dl -maxdepth 2 -size -1024c -type f \( -name "*.tar.*" -o -name "*.zip" -o -name "*.gz" -o -name "*.tgz" \) -exec rm -f {} \;
 
       - name: Compile firmware
         working-directory: /workdir/openwrt
