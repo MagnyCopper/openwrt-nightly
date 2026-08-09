@@ -11,7 +11,7 @@
 | 多设备支持（profile 系统） | ✅ 架构就绪，仅 R2S 已实现 |
 | 并行矩阵构建 | ⚠️ 待实现 |
 | dev 推送 → Artifacts | ✅ 已实现 |
-| main 双周定时 → Artifacts | ✅ 已实现 |
+| main 每月两次定时 → Artifacts | ✅ 已实现 |
 | 仅官方 Actions | ✅ 已实现 |
 
 ## 使用方法
@@ -19,7 +19,7 @@
 ### 自动构建
 
 - **开发分支 (dev)**: 推送到 `profiles/`、`configs/` 或 workflow 文件时自动构建，产物保留 14 天
-- **主分支 (main)**: 每 2 周自动构建，产物保留 14 天
+- **主分支 (main)**: 每月 1、15 号自动构建，产物保留 14 天
 
 ### 手动触发
 
@@ -47,7 +47,7 @@ profiles/
 .github/workflows/
   build.yml              # 可复用构建工作流 (核心引擎，仅官方 actions，零外部脚本)
   dev-build.yml          # dev 分支触发器
-  biweekly-build.yml     # main 分支双周定时触发
+  biweekly-build.yml     # main 分支每月两次定时触发 (1、15 号)
 ```
 
 ## 已启用插件（ImmortalWrt R2S）

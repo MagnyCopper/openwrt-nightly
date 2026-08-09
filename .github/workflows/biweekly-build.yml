@@ -1,13 +1,9 @@
-name: Dev Build
+name: Biweekly Build
 
 on:
-  push:
-    branches:
-      - dev
-    paths:
-      - 'profiles/**'
-      - 'configs/**'
-      - '.github/workflows/**'
+  schedule:
+    # Twice monthly: 1st & 15th, 04:00 HKT (20:00 UTC prior day)
+    - cron: '0 20 1,15 * *'
   workflow_dispatch:
     inputs:
       profile:
@@ -33,7 +29,7 @@ on:
 
 jobs:
   build:
-    name: Dev Build (${{ inputs.profile || 'r2s' }})
+    name: Biweekly Build (${{ inputs.profile || 'r2s' }})
     uses: ./.github/workflows/build.yml
     permissions:
       actions: write

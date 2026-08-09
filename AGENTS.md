@@ -48,7 +48,7 @@ Workflow run cleanup uses GitHub CLI (`gh`), no third-party action.
 
 The workflow is a reusable workflow (`workflow_call`) called by:
 - `dev-build.yml` → push to `dev` → artifacts (14-day retention)
-- `biweekly-build.yml` → cron on `main` every 2 weeks → artifacts (14-day retention)
+- `biweekly-build.yml` → cron on `main` twice monthly (1st & 15th) → artifacts (14-day retention)
 
 ### Build Phases
 
@@ -130,7 +130,7 @@ with:
 |------|---------|
 | `.github/workflows/build.yml` | **核心引擎.** 单一可复用工作流，零脚本 |
 | `.github/workflows/dev-build.yml` | Dev 触发器 (push to dev) |
-| `.github/workflows/biweekly-build.yml` | Main 双周触发器 (cron + manual) |
+| `.github/workflows/biweekly-build.yml` | Main 每月两次触发器 (cron + manual) |
 | `configs/packages.conf` | 共享插件列表（同源码下所有设备共用） |
 | `profiles/*/config` | 设备硬件配置 |
 | `profiles/*/files/` | 固件 overlay 文件 (可选) |
