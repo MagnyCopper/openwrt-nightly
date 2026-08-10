@@ -58,7 +58,7 @@ The workflow is a reusable workflow (`workflow_call`) called by:
 | 3 | Install deps | apt-get install build dependencies inline |
 | 4 | Clone source | `git clone --depth=1` into `/workdir/openwrt` |
 | 5 | Restore cache | **After clone** — restore `dl/` and `.ccache` (with CCACHE_DIR) |
-| 6 | Feeds update/install | `feeds update -a` → `feeds install -a` (all plugins bundled in ImmortalWrt feeds; no third-party feeds) |
+| 6 | Feeds | ddnsto 第三方源 setup → `feeds update -a` → `feeds install -a`（其余插件均 ImmortalWrt 自带）|
 | 7 | Load config | Device config + `configs/<source_name>/packages.conf` merge → `.config` |
 | 8 | Download sources | `make defconfig && make download` + cleanup bad archives |
 | 9 | Compile | Parallel → single thread → verbose retry cascade |
@@ -99,7 +99,7 @@ profiles/<device>/
 
 ### Third-party feeds
 
-当前无需。所有插件均自带于 ImmortalWrt 官方 feed（immortalwrt/luci + immortalwrt/packages）。若未来需要第三方源，参考 Section 7 的三种模式，在 `build.yml` Feeds 阶段内联添加。
+当前仅 ddnsto 需要第三方源（linkease/nas-packages + nas-packages-luci），已在 build.yml Feeds 阶段自动以 `src-git` 形式添加，无 profile/source 闸门（跨设备生效）。其余插件均自带于 ImmortalWrt 官方 feed（immortalwrt/luci + immortalwrt/packages）。若未来需要更多第三方源，参考 Section 7 的三种模式。
 
 ## 4. Source Configuration
 
@@ -164,7 +164,7 @@ gh workflow run dev-build.yml --ref dev \
 
 **Caveats when switching sources:**
 - Different sources have different default feeds → provide `configs/<source_name>/packages.conf` per source (build fails clearly if missing)
-- Third-party feed compatibility varies by source → ImmortalWrt currently needs none; other sources test manually first
+- Third-party feed compatibility varies by source → ImmortalWrt 当前仅需 ddnsto（已自动配置）；其他源码按需在 Feeds 阶段添加
 - Profile configs may need different kernel modules or drivers depending on the source
 
 ### Third-party Feed Patterns

@@ -100,6 +100,12 @@ jobs:
             ccache-${{ inputs.profile }}-${{ inputs.source_branch }}-
 
       # ── Phase 4: Feeds ────────────────────────────────────────
+      - name: Setup third-party feeds (ddnsto)
+        working-directory: /workdir/openwrt
+        run: |
+          # DDNSTo (linkease/nas-packages) — not bundled in ImmortalWrt feeds
+          echo "src-git ddnsto https://github.com/linkease/nas-packages.git" >> feeds.conf.default
+          echo "src-git ddnsto_luci https://github.com/linkease/nas-packages-luci.git" >> feeds.conf.default
       - name: Update & install feeds
         working-directory: /workdir/openwrt
         run: |

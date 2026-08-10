@@ -53,7 +53,7 @@ profiles/
 
 ## 已启用插件（ImmortalWrt）
 
-以下插件在 `configs/immortalwrt/packages.conf` 中声明，同源码下所有设备共享。编辑该文件即可增删；全部为 ImmortalWrt 官方 feed 自带，无需第三方源。
+以下插件在 `configs/immortalwrt/packages.conf` 中声明，同源码下所有设备共享。编辑该文件即可增删；除 ddnsto 外均为 ImmortalWrt 官方 feed 自带，ddnsto 来自第三方源（linkease/nas-packages，已在 build.yml Feeds 阶段自动配置）。
 
 ### 代理
 | 插件 | 说明 |
@@ -95,6 +95,7 @@ profiles/
 |------|------|
 | luci-app-zerotier | 虚拟局域网组网（大陆裸连不稳定，建议搭 moon）|
 | luci-app-nps | 内网穿透（需自备 VPS）|
+| ddnsto + luci-app-ddnsto | 内网穿透（无需公网 IP）|
 | luci-app-wol | 网络唤醒 |
 
 ### 通知
