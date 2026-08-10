@@ -35,7 +35,8 @@
 
 ```
 configs/
-  packages.conf          # 共享插件列表
+  immortalwrt/          # 按固件源码分目录 (build.yml 按 source_name 读取对应子目录)
+    packages.conf       # ImmortalWrt 共享插件清单 (跨设备，编辑此文件增删插件)
 
 profiles/
   r2s/                   # NanoPi R2S
@@ -50,74 +51,72 @@ profiles/
   biweekly-build.yml     # main 分支每月两次定时触发 (1、15 号)
 ```
 
-## 已启用插件（ImmortalWrt R2S）
+## 已启用插件（ImmortalWrt）
+
+以下插件在 `configs/immortalwrt/packages.conf` 中声明，同源码下所有设备共享。编辑该文件即可增删；全部为 ImmortalWrt 官方 feed 自带，无需第三方源。
+
+### 代理
+| 插件 | 说明 |
+|------|------|
+| luci-app-openclash | 科学上网代理客户端 (Clash.Meta 内核) |
+
+### DNS
+| 插件 | 说明 |
+|------|------|
+| luci-app-smartdns | 多 DNS 测速，国内 CDN 加速 |
+| luci-app-adblock | DNS 层去广告 |
+
+### 系统管理
+| 插件 | 说明 |
+|------|------|
+| luci-app-attendedsysupgrade | 保留配置在线升级固件 |
+| luci-app-ttyd | 浏览器终端 |
+| luci-app-ramfree | 内存释放 |
+| luci-app-watchcat | 网络看门狗（ping 不通则重启）|
+| luci-app-autoreboot | 定时重启 |
+
+### 监控
+| 插件 | 说明 |
+|------|------|
+| luci-app-netdata | 实时性能仪表盘 |
+| luci-app-nlbwmon | 按 IP 流量统计 |
+
+### 网络
+| 插件 | 说明 |
+|------|------|
+| luci-app-upnp | 自动端口映射（UU 加速器必需）|
+| luci-app-irqbalance | CPU 中断负载均衡 |
+| luci-app-arpbind | IP/MAC 地址绑定 |
+| luci-app-sqm | CAKE 智能队列 QoS |
+| luci-app-appfilter | 应用层流量识别 / 上网管控 |
+
+### 远程访问
+| 插件 | 说明 |
+|------|------|
+| luci-app-zerotier | 虚拟局域网组网（大陆裸连不稳定，建议搭 moon）|
+| luci-app-nps | 内网穿透（需自备 VPS）|
+| luci-app-wol | 网络唤醒 |
+
+### 通知
+| 插件 | 说明 |
+|------|------|
+| luci-app-wechatpush | 微信 / TG / Bark 通知推送 |
 
 ### 主题
-
 | 插件 | 说明 |
 |------|------|
 | luci-theme-argon | Argon 现代主题 |
 | luci-app-argon-config | Argon 主题设置 |
 
-### VPN & 代理
-
-| 插件 | 说明 |
+### 命令行工具
+| 包 | 说明 |
 |------|------|
-| luci-app-openclash | 科学上网代理客户端 (Clash.Meta 内核) |
-| tailscale | 零配置 WireGuard VPN 组网 |
-
-### DNS
-
-| 插件 | 说明 |
-|------|------|
-| luci-app-mosdns | DNS 分流插件 (配合 OpenClash 使用) |
-
-### 远程访问
-
-| 插件 | 说明 |
-|------|------|
-| ddnsto + luci-app-ddnsto | 内网穿透 (无需公网 IP) |
-
-### 网络
-
-| 插件 | 说明 |
-|------|------|
-| luci-app-upnp | 自动端口映射 |
-| luci-app-nft-qos | 实时流量限制 |
-| luci-app-nlbwmon | 带宽监控统计 |
-
-### 系统管理
-
-| 插件 | 说明 |
-|------|------|
-| luci-app-watchcat | 定时重启 / 网络监测重启 |
-| luci-app-netdata | 实时系统资源监控 |
-| luci-app-attendedsysupgrade | 在线固件升级 |
-| luci-app-irqbalance | IRQ 中断负载均衡 |
-| luci-app-ramfree | 内存释放 |
-| luci-app-statistics | 历史资源统计图表 |
-
-### 设备管理
-
-| 插件 | 说明 |
-|------|------|
-| luci-app-arpbind | IP/MAC 地址绑定 |
-| luci-app-wol | 网络唤醒 |
-| luci-app-appfilter | 应用过滤 (上网管控) |
-
-### 工具
-
-| 插件 | 说明 |
-|------|------|
-| luci-app-ttyd | Web 终端 |
-| htop | 交互式进程查看器 |
-| wget-ssl / curl | 下载工具 |
-| iperf3 | 网络性能测试 |
+| bash | 完整 Shell（OpenClash 脚本依赖）|
+| nano | 友好文本编辑器 |
+| htop | 交互式进程监控 |
+| mtr-nojson | 路由追踪（轻量版）|
 | tcpdump | 网络抓包 |
-
-### 可选插件 (取消注释启用)
-
-AdGuard Home, DDNS-Go, Samba4, FRP, WeChatPush, ZeroTier
+| iperf3 | 内网测速 |
 
 ## 性能优化
 
@@ -162,15 +161,9 @@ profiles/r4s/files/
     99-custom-settings    # 首次启动自动执行的 uci 脚本
 ```
 
-**3.（可选）添加设备专属第三方软件源**
+**3. 第三方软件源（当前无需）**
 
-在 `build.yml` 的 "Setup third-party feeds" 步骤中添加 profile 条件：
-
-```yaml
-if [ "$PROFILE" = "r4s" ]; then
-  echo "src-git feedname https://github.com/user/repo.git" >> feeds.conf.default
-fi
-```
+当前 ImmortalWrt 构建的插件全部自带于 ImmortalWrt 官方 feed，无需任何第三方源。若未来某设备/源码确实需要，参考下文“添加第三方软件源”的三种方式，在 `build.yml` 的 Feeds 阶段添加。
 
 **4. 手动触发测试**
 
@@ -203,13 +196,13 @@ gh workflow run dev-build.yml --ref dev \
 ```
 
 **注意事项：**
-- 不同源码的默认 feeds 和软件包不同，`packages.conf` 中的插件可能需要调整
-- 不同源码可能需要不同的第三方软件源逻辑（在 `build.yml` Phase 6 中按 profile 或 source_name 条件添加）
+- 不同源码的默认 feeds 和软件包不同，切换源码时需在 `configs/<source_name>/packages.conf` 提供对应清单（缺失会在构建时报错中止）
+- 当前 ImmortalWrt 的插件全部自带；其他源码可能需要第三方软件源（在 `build.yml` Feeds 阶段按需添加）
 - 首次使用新源码建议先手动触发测试，确认构建通过后再用于定时构建
 
 ### 添加第三方软件源
 
-第三方软件源配置直接内联于 `build.yml` Phase 6，按 profile 条件执行。支持三种方式：
+第三方软件源配置直接内联于 `build.yml` 的 Feeds 阶段。当前 ImmortalWrt 构建无需第三方源（全部自带）；如未来需要，支持三种方式：
 
 **方式一：添加为正式 feed（推荐）**
 

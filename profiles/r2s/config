@@ -1,7 +1,7 @@
 #
 # NanoPi R2S Device Configuration
 # Only device-specific settings here.
-# Shared packages are in configs/packages.conf
+# Shared packages are in configs/immortalwrt/packages.conf
 #
 
 #

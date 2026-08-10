@@ -99,46 +99,11 @@ jobs:
           restore-keys: |
             ccache-${{ inputs.profile }}-${{ inputs.source_branch }}-
 
-      # ── Phase 4: Feeds & Third-party Packages ────────────────────
-      - name: Setup third-party feeds (ddnsto + mosdns + geodata)
-        working-directory: /workdir/openwrt
-        run: |
-          PROFILE="${{ inputs.profile }}"
-          # Only R2S profile needs third-party feeds currently
-          if [ "$PROFILE" = "r2s" ]; then
-            # DDNSTo (linkease/nas-packages)
-            echo "src-git ddnsto https://github.com/linkease/nas-packages.git" >> feeds.conf.default
-            echo "src-git ddnsto_luci https://github.com/linkease/nas-packages-luci.git" >> feeds.conf.default
-
-            # MosDNS v5 (sbwml/luci-app-mosdns) as proper feed
-            echo "src-git mosdns https://github.com/sbwml/luci-app-mosdns.git;v5" >> feeds.conf.default
-
-            # v2ray-geodata (data files, no golang dependency)
-            git clone --depth=1 https://github.com/sbwml/v2ray-geodata.git package/v2ray-geodata
-
-            # Signal that golang toolchain override is needed (mosdns v5 needs Go 1.25+)
-            touch /tmp/.golang-override
-          fi
-
+      # ── Phase 4: Feeds ────────────────────────────────────────
       - name: Update & install feeds
         working-directory: /workdir/openwrt
         run: |
           ./scripts/feeds update -a
-
-          # Override golang toolchain if flagged (mosdns v5 needs Go 1.25+)
-          if [ -f /tmp/.golang-override ] && [ -d feeds/packages/lang/golang ]; then
-            rm -rf feeds/packages/lang/golang
-            git clone --depth=1 -b 25.x https://github.com/sbwml/packages_lang_golang.git feeds/packages/lang/golang
-            ./scripts/feeds update -i packages
-            ./scripts/feeds install -f -p packages golang
-            echo "Overrode golang toolchain with sbwml 25.x (Go 1.25+)"
-          fi
-
-          # Force-install mosdns packages from sbwml feed (overrides ImmortalWrt's mosdns)
-          if [ -f /tmp/.golang-override ]; then
-            ./scripts/feeds install -f -p mosdns mosdns luci-app-mosdns
-          fi
-
           ./scripts/feeds install -a
 
       # ── Phase 5: Configuration ──────────────────────────────────
@@ -152,8 +117,13 @@ jobs:
           fi
           # Device-specific config as base
           cp "${GITHUB_WORKSPACE}/profiles/${PROFILE}/config" .config
-          # Merge shared packages (skip comments and blank lines)
-          grep -v '^\s*#' "${GITHUB_WORKSPACE}/configs/packages.conf" | grep -v '^\s*$' >> .config
+          # Merge shared packages for this firmware source (skip comments and blank lines)
+          PACKAGES_CONF="${GITHUB_WORKSPACE}/configs/${SOURCE_NAME}/packages.conf"
+          if [ ! -f "${PACKAGES_CONF}" ]; then
+            echo "::error::No packages.conf for source '${SOURCE_NAME}' (expected ${PACKAGES_CONF})"
+            exit 1
+          fi
+          grep -v '^\s*#' "${PACKAGES_CONF}" | grep -v '^\s*$' >> .config
 
       # ── Phase 6: Build ──────────────────────────────────────────
       - name: Download sources

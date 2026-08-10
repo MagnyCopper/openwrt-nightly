@@ -22,14 +22,13 @@
 ### 待实现功能
 
 1. **矩阵构建**：`dev-build.yml` / `biweekly-build.yml` 使用 `strategy.matrix` 并行构建多设备
-2. **多源码触发器**：`dev-build.yml` / `biweekly-build.yml` 暴露 `source_repo_url` 等参数，支持手动选择源码
-3. **设备级插件差异**：允许 `profiles/<device>/packages.conf` 覆盖共享插件列表中的个别项
+2. **设备级插件差异**：允许 `profiles/<device>/packages.conf` 覆盖共享插件清单中的个别项
 
 ### 设计原则
 
 - **Profile 为中心**：`profiles/<device>/` 是设备配置的唯一入口
 - **源码无关**：源码参数通过 workflow input 传入，profile 不绑定源码
-- **插件分层**：共享层 `configs/packages.conf` + 设备层 `profiles/<device>/config`
+- **插件分层**：固件层 `configs/<source_name>/packages.conf` + 设备层 `profiles/<device>/config`
 - **声明式配置**：尽量用 YAML 原生能力，不写脚本
 - **仅官方 Actions**：仅使用 `actions/*` 官方包，清理用 `gh` CLI
 
@@ -59,12 +58,11 @@ The workflow is a reusable workflow (`workflow_call`) called by:
 | 3 | Install deps | apt-get install build dependencies inline |
 | 4 | Clone source | `git clone --depth=1` into `/workdir/openwrt` |
 | 5 | Restore cache | **After clone** — restore `dl/` and `.ccache` (with CCACHE_DIR) |
-| 6 | Third-party feeds | Inline: profile-gated feed setup (ddnsto, mosdns, geodata, etc.) |
-| 7 | Feeds update/install | `feeds update -a` → golang override → `feeds install -a` |
-| 8 | Load config | Device config + shared packages.conf merge → `.config` |
-| 9 | Download sources | `make defconfig && make download` + cleanup bad archives |
-| 10 | Compile | Parallel → single thread → verbose retry cascade |
-| 11 | Collect & upload | Firmware images + metadata → upload artifact |
+| 6 | Feeds update/install | `feeds update -a` → `feeds install -a` (all plugins bundled in ImmortalWrt feeds; no third-party feeds) |
+| 7 | Load config | Device config + `configs/<source_name>/packages.conf` merge → `.config` |
+| 8 | Download sources | `make defconfig && make download` + cleanup bad archives |
+| 9 | Compile | Parallel → single thread → verbose retry cascade |
+| 10 | Collect & upload | Firmware images + metadata → upload artifact |
 
 ## 2. Cache Strategy
 
@@ -94,19 +92,14 @@ profiles/<device>/
 
 ### Config Merging (分层配置)
 1. `cp profiles/<device>/config .config` — 设备硬件配置
-2. `grep -v '^\s*#' configs/packages.conf | grep -v '^\s*$' >> .config` — 共享插件列表
+2. `grep -v '^\s*#' configs/<source_name>/packages.conf | grep -v '^\s*$' >> .config` — 该源码的共享插件清单（缺失则报错中止）
 3. `make defconfig` — resolve dependencies
 
 **未来扩展**：允许 `profiles/<device>/packages.override` 增删个别插件
 
 ### Third-party feeds
-Third-party feed setup is inlined in `build.yml` Phase 6, profile-gated. No hooks or scripts needed.
 
-**R2S 第三方软件源：**
-- ddnsto: `src-git ddnsto` (linkease/nas-packages) + `src-git ddnsto_luci` (linkease/nas-packages-luci)
-- mosdns v5: `src-git mosdns` (sbwml/luci-app-mosdns;v5) — 作为正式 feed 引入
-- v2ray-geodata: `git clone` 到 `package/v2ray-geodata`（数据文件，无 golang 依赖）
-- golang override: `sbwml/packages_lang_golang` branch `25.x`（mosdns v5 需要 Go 1.25+）
+当前无需。所有插件均自带于 ImmortalWrt 官方 feed（immortalwrt/luci + immortalwrt/packages）。若未来需要第三方源，参考 Section 7 的三种模式，在 `build.yml` Feeds 阶段内联添加。
 
 ## 4. Source Configuration
 
@@ -131,7 +124,7 @@ with:
 | `.github/workflows/build.yml` | **核心引擎.** 单一可复用工作流，零脚本 |
 | `.github/workflows/dev-build.yml` | Dev 触发器 (push to dev) |
 | `.github/workflows/biweekly-build.yml` | Main 每月两次触发器 (cron + manual) |
-| `configs/packages.conf` | 共享插件列表（同源码下所有设备共用） |
+| `configs/<source_name>/packages.conf` | 各源码的共享插件清单（同源码下所有设备共用，按 source_name 分目录） |
 | `profiles/*/config` | 设备硬件配置 |
 | `profiles/*/files/` | 固件 overlay 文件 (可选) |
 
@@ -139,12 +132,10 @@ with:
 
 - **Reusable Workflow Inputs**: Use `inputs.*` context, NOT `github.event.inputs.*`
 - **Cache Before Clone**: NEVER restore cache before `git clone`. Always after.
-- **Feed Override Order**: inline feed setup → feeds update → golang override → feeds update -i packages → feeds install -f golang → feeds install -f mosdns → feeds install -a
 - **Download Cleanup**: Only delete small archive files (`*.tar.*`, `*.zip`, `*.gz`), NOT Go module source files which can be tiny (e.g. protobuf `editiondefaults.binpb` = 154 bytes)
 - **BOM Encoding**: All files must be UTF-8 WITHOUT BOM
 - **LF Line Endings**: Enforced via `.gitattributes`
 - **CCACHE_DIR**: Must be set explicitly; OpenWrt doesn't default to `.ccache` in source root
-- **Golang**: mosdns v5 needs Go 1.25+ → use `sbwml/packages_lang_golang` branch `25.x`; must `feeds install -f -p packages golang` after override to refresh symlink
 - **Action Versions**: Pin all `uses:` to specific tags (not `@master`/`@main`)
 
 ## 7. Adding New Devices & Sources
@@ -155,7 +146,7 @@ with:
    - Use `make menuconfig` in the source repo to generate the correct config
    - Example (R4S): `CONFIG_TARGET_rockchip=y` + `CONFIG_TARGET_rockchip_armv8=y` + `CONFIG_TARGET_rockchip_armv8_DEVICE_friendlyarm_nanopi-r4s=y`
 2. Optionally add `profiles/<device>/files/` for custom overlay (uci-defaults scripts, config files)
-3. Add profile-specific third-party feed logic in `build.yml` Phase 6 if needed
+3. (可选) 若该设备需要第三方软件源，在 `build.yml` Feeds 阶段按 profile/source_name 条件添加（当前 ImmortalWrt 无需）
 4. Test with manual trigger: `gh workflow run dev-build.yml --ref dev -f profile=<device>`
 5. (Future) Add to matrix in `dev-build.yml` / `biweekly-build.yml`
 
@@ -172,26 +163,24 @@ gh workflow run dev-build.yml --ref dev \
 ```
 
 **Caveats when switching sources:**
-- Different sources have different default feeds → `packages.conf` may need adjustment
-- Third-party feed compatibility varies by source → test manually first
+- Different sources have different default feeds → provide `configs/<source_name>/packages.conf` per source (build fails clearly if missing)
+- Third-party feed compatibility varies by source → ImmortalWrt currently needs none; other sources test manually first
 - Profile configs may need different kernel modules or drivers depending on the source
 
 ### Third-party Feed Patterns
 
-Three patterns available (all inlined in `build.yml` Phase 6):
+Three patterns available (all inlined in `build.yml` Feeds phase). Current ImmortalWrt build uses none:
 
 | Pattern | When to Use | Example |
 |---------|-------------|---------|
-| `src-git` feed entry | Multi-package repos, need dependency resolution | `echo "src-git mosdns https://github.com/sbwml/luci-app-mosdns.git;v5" >> feeds.conf.default` |
-| `git clone` to `package/` | Standalone data packages, no feed deps needed | `git clone --depth=1 https://github.com/sbwml/v2ray-geodata.git package/v2ray-geodata` |
-| Feed override + reinstall | Replace built-in packages with custom versions | `rm -rf feeds/packages/lang/golang` → clone replacement → `feeds update -i packages` → `feeds install -f -p packages golang` |
+| `src-git` feed entry | Multi-package repos, need dependency resolution | `echo "src-git feedname https://github.com/user/repo.git;branch" >> feeds.conf.default` |
+| `git clone` to `package/` | Standalone data packages, no feed deps needed | `git clone --depth=1 https://github.com/user/repo.git package/repo-name` |
+| Feed override + reinstall | Replace built-in packages with custom versions | `rm -rf feeds/packages/lang/<pkg>` → clone replacement → `feeds update -i packages` → `feeds install -f -p packages <pkg>` |
 
 ## 8. Debugging Failed Builds
 
 - Check the **Compile firmware** step for the actual error
 - The retry cascade provides verbose output: `make -j1 V=s`
 - If `No space left on device` → check disk cleanup step
-- If `golang` or `mosdns` build fails → check golang override ran after feeds update
-- If `v2dat` fails with `go >= 1.25.0` → golang 25.x override didn't apply
 - If `no required module provides package` → check download cleanup step didn't delete Go module files
 - To debug interactively: add `tmate` SSH step to build.yml temporarily (not included by default to avoid third-party deps)
