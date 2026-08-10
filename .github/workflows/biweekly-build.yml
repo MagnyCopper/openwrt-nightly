@@ -2,7 +2,7 @@ name: Biweekly Build
 
 on:
   schedule:
-    # Twice monthly: 1st & 15th, 04:00 HKT (20:00 UTC prior day)
+    # Twice monthly at 04:00 HKT on 2nd & 16th (cron: 20:00 UTC on 1st & 15th, +8h crosses midnight → next-day 04:00)
     - cron: '0 20 1,15 * *'
   workflow_dispatch:
     inputs:

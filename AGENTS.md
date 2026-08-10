@@ -47,7 +47,7 @@ Workflow run cleanup uses GitHub CLI (`gh`), no third-party action.
 
 The workflow is a reusable workflow (`workflow_call`) called by:
 - `dev-build.yml` → push to `dev` → artifacts (14-day retention)
-- `biweekly-build.yml` → cron on `main` twice monthly (1st & 15th) → artifacts (14-day retention)
+- `biweekly-build.yml` → cron on `main` twice monthly (04:00 HKT on 2nd & 16th) → artifacts (14-day retention)
 
 ### Build Phases
 
