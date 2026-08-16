@@ -95,6 +95,8 @@ profiles/<device>/
 2. `grep -v '^\s*#' configs/<source_name>/packages.conf | grep -v '^\s*$' >> .config` — 该源码的共享插件清单（缺失则报错中止）
 3. `make defconfig` — resolve dependencies
 
+**基础镜像模式**：packages.conf 中注释行不会进入构建（merge 时 `grep -v` 过滤），用作插件暂存区——待验证插件注释保留，验证通过后取消注释推 dev 即启用。
+
 **未来扩展**：允许 `profiles/<device>/packages.override` 增删个别插件
 
 ### Third-party feeds

@@ -36,7 +36,7 @@
 ```
 configs/
   immortalwrt/          # 按固件源码分目录 (build.yml 按 source_name 读取对应子目录)
-    packages.conf       # ImmortalWrt 共享插件清单 (跨设备，编辑此文件增删插件)
+    packages.conf       # ImmortalWrt 共享插件清单 (基础镜像模式:未注释=生效,注释=暂缓待验证)
 
 profiles/
   r2s/                   # NanoPi R2S
@@ -44,6 +44,7 @@ profiles/
     files/               # 自定义固件文件 (开机自动应用)
       etc/uci-defaults/
         80-packet-steering  # RPS 多核网络负载均衡
+        99-custom-settings  # 首启设置 LAN IP 为 192.168.10.1 (避开上级路由 192.168.1.x)
 
 .github/workflows/
   build.yml              # 可复用构建工作流 (核心引擎，仅官方 actions，零外部脚本)
@@ -53,71 +54,45 @@ profiles/
 
 ## 已启用插件（ImmortalWrt）
 
-以下插件在 `configs/immortalwrt/packages.conf` 中声明，同源码下所有设备共享。编辑该文件即可增删；除 ddnsto 外均为 ImmortalWrt 官方 feed 自带，ddnsto 来自第三方源（linkease/nas-packages，已在 build.yml Feeds 阶段自动配置）。
+基础镜像模式：`configs/immortalwrt/packages.conf` 中**未注释的行才会编入固件**，注释行为暂缓启用的候选插件（先在测试机验证，满意后取消注释并推 dev 即可启用，构建逻辑自动过滤 `#` 行）。除 ddnsto 外均为 ImmortalWrt 官方 feed 自带；ddnsto 的第三方源（linkease/nas-packages）已在 build.yml Feeds 阶段自动配置，当前已注释改用运行时脚本安装，feed 保留供未来重新启用。
 
-### 代理
-| 插件 | 说明 |
+### 生效中（9 项，随固件构建）
+
+| 项 | 说明 |
 |------|------|
 | luci-app-openclash | 科学上网代理客户端 (Clash.Meta 内核) |
-
-### DNS
-| 插件 | 说明 |
-|------|------|
-| luci-app-smartdns | 多 DNS 测速，国内 CDN 加速 |
-| luci-app-adblock | DNS 层去广告 |
-
-### 系统管理
-| 插件 | 说明 |
-|------|------|
-| luci-app-attendedsysupgrade | 保留配置在线升级固件 |
-| luci-app-ttyd | 浏览器终端 |
-| luci-app-ramfree | 内存释放 |
-| luci-app-watchcat | 网络看门狗（ping 不通则重启）|
-| luci-app-autoreboot | 定时重启 |
-
-### 监控
-| 插件 | 说明 |
-|------|------|
-| luci-app-netdata | 实时性能仪表盘 |
-| luci-app-nlbwmon | 按 IP 流量统计 |
-
-### 网络
-| 插件 | 说明 |
-|------|------|
-| luci-app-upnp | 自动端口映射（UU 加速器必需）|
-| luci-app-irqbalance | CPU 中断负载均衡 |
-| luci-app-arpbind | IP/MAC 地址绑定 |
-| luci-app-sqm | CAKE 智能队列 QoS |
-| luci-app-appfilter | 应用层流量识别 / 上网管控 |
-
-### 远程访问
-| 插件 | 说明 |
-|------|------|
-| luci-app-zerotier | 虚拟局域网组网（大陆裸连不稳定，建议搭 moon）|
-| luci-app-nps | 内网穿透（需自备 VPS）|
-| ddnsto + luci-app-ddnsto | 内网穿透（无需公网 IP）|
-| luci-app-wol | 网络唤醒 |
-
-### 通知
-| 插件 | 说明 |
-|------|------|
-| luci-app-wechatpush | 微信 / TG / Bark 通知推送 |
-
-### 主题
-| 插件 | 说明 |
-|------|------|
 | luci-theme-argon | Argon 现代主题 |
 | luci-app-argon-config | Argon 主题设置 |
-
-### 命令行工具
-| 包 | 说明 |
-|------|------|
 | bash | 完整 Shell（OpenClash 脚本依赖）|
 | nano | 友好文本编辑器 |
 | htop | 交互式进程监控 |
 | mtr-nojson | 路由追踪（轻量版）|
-| tcpdump | 网络抓包 |
+| tcpdump | 网络抓包（断网诊断刚需）|
 | iperf3 | 内网测速 |
+
+### 暂缓启用（20 项，已在 packages.conf 中注释）
+
+| 项 | 暂缓原因 |
+|------|------|
+| luci-app-smartdns | DNS 加速，待试验田验证 |
+| luci-app-adblock | 与 openclash reject 规则重叠，待验证 |
+| luci-app-attendedsysupgrade | 仅适用官方 ASU 服务器，自编译固件用不上 |
+| luci-app-ttyd | 已有 SSH，按需启用 |
+| luci-app-ramfree | Linux 内存管理自足，收益存疑 |
+| luci-app-watchcat | 日志实证 5 天零重启，待验证 |
+| luci-app-autoreboot | 与 watchcat 功能重叠 |
+| luci-app-netdata | 实时监控，待验证 |
+| luci-app-nlbwmon | 流量记账，待验证 |
+| luci-app-upnp | 日志显示仅失效订阅刷屏，场景存疑 |
+| luci-app-irqbalance | 双核收益边际 |
+| luci-app-arpbind | 内网无 ARP 欺骗史 |
+| luci-app-sqm | R2S 跑不动千兆 CAKE，低带宽才考虑 |
+| luci-app-appfilter | 家庭管控场景，待验证 |
+| luci-app-zerotier | 大陆裸连不稳 |
+| luci-app-nps | 需自备 VPS |
+| ddnsto + luci-app-ddnsto | 改用 koolcenter 脚本按需安装（每次固件升级后需重跑）|
+| luci-app-wol | 无远程开机需求 |
+| luci-app-wechatpush | 通知推送，待验证 |
 
 ## 性能优化
 
@@ -236,6 +211,6 @@ git clone --depth=1 -b 25.x https://github.com/user/golang.git feeds/packages/la
 
 ## 固件信息
 
-- 默认地址: http://192.168.1.1 或 http://immortalwrt.lan
+- 默认地址: http://192.168.10.1 或 http://immortalwrt.lan（uci-defaults 首启自动设置，上级网络为 192.168.1.x）
 - 用户名: root
 - 密码: 无
