@@ -139,6 +139,7 @@ with:
 - **LF Line Endings**: Enforced via `.gitattributes`
 - **CCACHE_DIR**: Must be set explicitly; OpenWrt doesn't default to `.ccache` in source root
 - **Action Versions**: Pin all `uses:` to specific tags (not `@master`/`@main`)
+- **Files Overlay Destination**: `profiles/<device>/files/` contents MUST be copied to `<source>/files/` (OpenWrt rootfs overlay convention), NOT to the source-tree root — copying to root is silently ignored and scripts never ship
 
 ## 7. Adding New Devices & Sources
 

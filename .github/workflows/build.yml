@@ -117,9 +117,11 @@ jobs:
         working-directory: /workdir/openwrt
         run: |
           PROFILE="${{ inputs.profile }}"
-          # Copy custom files overlay (including dotfiles)
+          # Copy custom files overlay (including dotfiles) — MUST go to ./files/
+          # (OpenWrt rootfs overlay convention; copying to source root is ignored)
           if [ -d "${GITHUB_WORKSPACE}/profiles/${PROFILE}/files" ]; then
-            cp -a "${GITHUB_WORKSPACE}/profiles/${PROFILE}/files/." .
+            mkdir -p files
+            cp -a "${GITHUB_WORKSPACE}/profiles/${PROFILE}/files/." files/
           fi
           # Device-specific config as base
           cp "${GITHUB_WORKSPACE}/profiles/${PROFILE}/config" .config
