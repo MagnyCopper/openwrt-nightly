@@ -43,8 +43,12 @@ profiles/
     config               # 硬件配置 (target, 分区, USB 网卡驱动)
     files/               # 自定义固件文件 (开机自动应用)
       etc/uci-defaults/
-        80-packet-steering  # RPS 多核网络负载均衡
-        99-custom-settings  # 首启设置 LAN IP 为 192.168.10.1 (避开上级路由 192.168.1.x)
+      init.d/
+        rps-tune            # 收包软中断 CPU0 → CPU1-3 散核 + RFS 流表
+      sysctl.d/
+        99-tune.conf         # conntrack 32万/TCP 缓冲 32MB/软中断配额翻倍
+      uci-defaults/
+        99-custom-lan-ip     # 首启设 LAN 192.168.10.1 (避开上级路由 192.168.1.x)
 
 .github/workflows/
   build.yml              # 可复用构建工作流 (核心引擎，仅官方 actions，零外部脚本)
@@ -101,7 +105,8 @@ profiles/
 R2S 的 4 核 Cortex-A53 在默认配置下，所有网络中断都由 CPU0 处理。本固件启用两级优化：
 
 1. **IRQ Affinity** (ImmortalWrt 内置): `eth0→CPU1`, `eth1→CPU2`
-2. **Packet Steering** (uci-defaults): `packet_steering=2`，将接收数据包分发到所有 CPU 核心处理
+2. **RPS/RFS 散核** (`init.d/rps-tune`): 收包软中断从 CPU0 散到 CPU1-3，配合 sysctl `rps_sock_flow_entries=32768` 按流亲和分发
+3. **sysctl 调优** (`99-tune.conf`): conntrack 32万、TCP 缓冲 32MB、软中断配额翻倍、min_free_kbytes 32MB（参照 unifreq/openwrt_packit 实战值）
 
 ### 构建优化
 
@@ -212,5 +217,8 @@ git clone --depth=1 -b 25.x https://github.com/user/golang.git feeds/packages/la
 ## 固件信息
 
 - 默认地址: http://192.168.10.1 或 http://immortalwrt.lan（uci-defaults 首启自动设置，上级网络为 192.168.1.x）
+- 分区布局: kernel 16MB + rootfs **512MB**（与本地调试版 openclash-24.10.6-r2s 严格对齐）
+- 内核模块: 预装 206 个网络类 kmod（netfilter/ipt/nft 全家、crypto、隧道、cake/bbr、oaf），运行时装 kmod 无阻力
+- 配套 opkg 源: 每次构建附带 `opkg-repo-*` artifact（vermagic 精确匹配的 kmod + 软件包仓库），解压后可直接作 opkg feed
 - 用户名: root
 - 密码: 无

@@ -1,0 +1,5 @@
+#!/bin/sh
+# 预置主路由 LAN 地址
+uci -q set network.lan.ipaddr='192.168.10.1'
+uci -q set network.lan.netmask='255.255.255.0'
+uci -q commit network

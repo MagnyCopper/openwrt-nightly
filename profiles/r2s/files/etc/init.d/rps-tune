@@ -1,0 +1,24 @@
+#!/bin/sh /etc/rc.common
+# R2S RPS 收包转向：把网卡收包软中断从 CPU0 散到 CPU1-3
+# R2S 的 GMAC(WAN) 与 xHCI(USB LAN) 中断默认落在 CPU0，单核瓶颈是实测通病
+# 参照 unifreq balethirq.pl 思路的静态版（R2S 硬件固定，无需 perl 动态发现）
+
+START=99
+USE_PROCD=1
+
+apply_rps() {
+	local iface="$1"
+	[ -d "/sys/class/net/$iface" ] || return 0
+	for q in /sys/class/net/"$iface"/queues/rx-*; do
+		[ -d "$q" ] || continue
+		# 0xe = CPU1,2,3（避开默认承载网卡中断的 CPU0）
+		echo "e" > "$q/rps_cpus" 2>/dev/null
+		# RFS：每队列流数（配合 net.rps_sock_flow_entries=32768）
+		echo 256 > "$q/rps_flow_count" 2>/dev/null
+	done
+}
+
+start_service() {
+	apply_rps "eth0"
+	apply_rps "eth1"
+}

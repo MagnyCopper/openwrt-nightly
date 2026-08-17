@@ -1,9 +1,0 @@
-#!/bin/sh
-# Enable packet steering (RPS) to distribute network load across all CPU cores
-# This complements the built-in /etc/hotplug.d/net/40-net-smp-affinity script
-# which pins IRQs to specific cores (eth0->CPU1, eth1->CPU2 on R2S)
-
-uci -q set network.globals.packet_steering='2'
-uci -q commit network
-
-exit 0

@@ -193,6 +193,25 @@ jobs:
           path: ${{ env.FIRMWARE_DIR }}/*
           retention-days: 14
 
+      - name: Upload companion opkg repository (vermagic-matched kmods & packages)
+        if: ${{ success() }}
+        working-directory: /workdir/openwrt
+        run: |
+          # ALL_KMODS build produces a kmod repo whose vermagic exactly matches this
+          # firmware — usable as a self-hosted opkg feed for runtime installs.
+          mkdir -p /tmp/opkg-repo
+          cp -r bin/packages /tmp/opkg-repo/
+          cp -r bin/targets/*/packages /tmp/opkg-repo/kmod 2>/dev/null || true
+          cd /tmp/opkg-repo && zip -qr repo.zip .
+          echo "OPKG_REPO_ZIP=/tmp/opkg-repo/repo.zip" >> "$GITHUB_ENV"
+      - name: Upload opkg-repo artifact
+        if: ${{ success() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: opkg-repo-${{ env.ARTIFACT_NAME }}
+          path: ${{ env.OPKG_REPO_ZIP }}
+          retention-days: 14
+
       # ── Phase 8: Cleanup ─────────────────────────────────────────
       - name: Prune old workflow runs
         if: ${{ !cancelled() }}
