@@ -1,0 +1,10 @@
+#!/bin/sh
+# 接口任何事件(ifup/重启)后重新应用 RPS 散核，防御运行时改写
+[ "$ACTION" = "ifup" ] || exit 0
+for i in eth0 eth1; do
+  [ -d "/sys/class/net/$i" ] || continue
+  for q in /sys/class/net/$i/queues/rx-*; do
+    [ -d "$q" ] || continue
+    echo "e" > "$q/rps_cpus" 2>/dev/null
+  done
+done

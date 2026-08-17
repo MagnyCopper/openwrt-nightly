@@ -42,13 +42,15 @@ profiles/
   r2s/                   # NanoPi R2S
     config               # 硬件配置 (target, 分区, USB 网卡驱动)
     files/               # 自定义固件文件 (开机自动应用)
-      etc/uci-defaults/
-      init.d/
-        rps-tune            # 收包软中断 CPU0 → CPU1-3 散核 + RFS 流表
-      sysctl.d/
-        99-tune.conf         # conntrack 32万/TCP 缓冲 32MB/软中断配额翻倍
-      uci-defaults/
-        99-custom-lan-ip     # 首启设 LAN 192.168.10.1 (避开上级路由 192.168.1.x)
+      etc/
+        hotplug.d/iface/
+          99-rps-tune        # ifup 后重应用 RPS 散核（防御运行时改写）
+        init.d/
+          rps-tune            # 收包软中断 CPU0 → CPU1-3 散核 + RFS 流表
+        sysctl.d/
+          99-tune.conf         # conntrack 32万/TCP 缓冲 32MB/软中断配额翻倍
+        uci-defaults/
+          99-custom-lan-ip     # 首启设 LAN 192.168.10.1 (避开上级路由 192.168.1.x)
 
 .github/workflows/
   build.yml              # 可复用构建工作流 (核心引擎，仅官方 actions，零外部脚本)
@@ -60,19 +62,23 @@ profiles/
 
 基础镜像模式：`configs/immortalwrt/packages.conf` 中**未注释的行才会编入固件**，注释行为暂缓启用的候选插件（先在测试机验证，满意后取消注释并推 dev 即可启用，构建逻辑自动过滤 `#` 行）。除 ddnsto 外均为 ImmortalWrt 官方 feed 自带；ddnsto 的第三方源（linkease/nas-packages）已在 build.yml Feeds 阶段自动配置，当前已注释改用运行时脚本安装，feed 保留供未来重新启用。
 
-### 生效中（9 项，随固件构建）
+### 生效中（随固件构建）
 
 | 项 | 说明 |
 |------|------|
 | luci-app-openclash | 科学上网代理客户端 (Clash.Meta 内核) |
 | luci-theme-argon | Argon 现代主题 |
-| luci-app-argon-config | Argon 主题设置 |
-| bash | 完整 Shell（OpenClash 脚本依赖）|
+| luci-app-argon-config (+zh-cn i18n) | Argon 主题设置（含中文语言包）|
+| bash / curl / ip-full / unzip / ruby 全家 | OpenClash 运行时依赖（含 YJIT）|
+| zram-swap | 1GB 内存防 OOM 兑底 |
+| 206 个网络类 kmod | netfilter/ipt/nft 全家、crypto、隧道、cake/bbr、oaf —— 运行时装 kmod 零阻力 |
 | nano | 友好文本编辑器 |
 | htop | 交互式进程监控 |
 | mtr-nojson | 路由追踪（轻量版）|
 | tcpdump | 网络抓包（断网诊断刚需）|
 | iperf3 | 内网测速 |
+
+> 以上与本地调试版 `openclash-24.10.6-r2s` 的 249 行增量严格对齐（逐行对账零差异）。
 
 ### 暂缓启用（20 项，已在 packages.conf 中注释）
 
@@ -102,10 +108,10 @@ profiles/
 
 ### Packet Steering (RPS)
 
-R2S 的 4 核 Cortex-A53 在默认配置下，所有网络中断都由 CPU0 处理。本固件启用两级优化：
+R2S 的 4 核 Cortex-A53 在默认配置下，所有网络中断都由 CPU0 处理。本固件启用多级优化：
 
 1. **IRQ Affinity** (ImmortalWrt 内置): `eth0→CPU1`, `eth1→CPU2`
-2. **RPS/RFS 散核** (`init.d/rps-tune`): 收包软中断从 CPU0 散到 CPU1-3，配合 sysctl `rps_sock_flow_entries=32768` 按流亲和分发
+2. **RPS/RFS 散核** (`init.d/rps-tune`): 收包软中断从 CPU0 散到 CPU1-3，配合 sysctl `net.core.rps_sock_flow_entries=32768` 按流亲和分发；`hotplug.d/iface/99-rps-tune` 在接口 ifup 后自动重应用，防御运行时改写
 3. **sysctl 调优** (`99-tune.conf`): conntrack 32万、TCP 缓冲 32MB、软中断配额翻倍、min_free_kbytes 32MB（参照 unifreq/openwrt_packit 实战值）
 
 ### 构建优化
@@ -139,7 +145,7 @@ CONFIG_CCACHE=y
 ```
 profiles/r4s/files/
   etc/uci-defaults/
-    99-custom-settings    # 首次启动自动执行的 uci 脚本
+    99-custom-lan-ip      # 首次启动自动执行的 uci 脚本（示例名）
 ```
 
 **3. 第三方软件源（当前无需）**
