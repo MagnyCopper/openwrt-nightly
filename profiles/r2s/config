@@ -7,6 +7,10 @@
 #
 # Build Optimization
 #
+# NOTE: CONFIG_DEVEL=y is REQUIRED — the CCACHE symbol is gated behind the DEVEL
+# menu (config CCACHE ... if DEVEL). Without DEVEL, defconfig silently drops
+# CONFIG_CCACHE and every build runs cold (symptom: 0MB ccache cache entries).
+CONFIG_DEVEL=y
 CONFIG_CCACHE=y
 
 #

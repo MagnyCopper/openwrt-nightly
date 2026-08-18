@@ -138,7 +138,7 @@ with:
 - **BOM Encoding**: All files must be UTF-8 WITHOUT BOM
 - **"is not set" Lines Are Functional**: `# CONFIG_xxx is not set` is a kconfig directive, NOT a comment — the packages.conf merge (awk) must preserve it. Trap: with `CONFIG_ALL_KMODS=y`, kmod-tls defaults to m; its conditional dep `PACKAGE_kmod-tls:kmod-tls` then caps kmod-bonding at m (silently excluded from image) unless kmod-tls is explicitly not-set. Symptom: explicit `=y` lines demoted to `=m` after `make defconfig` — diff the defconfig output against the input to catch it.
 - **LF Line Endings**: Enforced via `.gitattributes`
-- **CCACHE_DIR**: Must be set explicitly; OpenWrt doesn't default to `.ccache` in source root
+- **CCACHE needs DEVEL**: `CONFIG_CCACHE=y` is gated behind `CONFIG_DEVEL=y` (Config-devel.in: `bool "Use ccache" if DEVEL`). Without DEVEL, defconfig silently drops the symbol → 0MB ccache cache entries → every build cold. rules.mk defaults CCACHE_DIR to `$(TOPDIR)/.ccache`, matching the actions/cache path.
 - **Action Versions**: Pin all `uses:` to specific tags (not `@master`/`@main`)
 - **Files Overlay Destination**: `profiles/<device>/files/` contents MUST be copied to `<source>/files/` (OpenWrt rootfs overlay convention), NOT to the source-tree root — copying to root is silently ignored and scripts never ship
 
