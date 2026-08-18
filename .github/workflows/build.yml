@@ -125,13 +125,18 @@ jobs:
           fi
           # Device-specific config as base
           cp "${GITHUB_WORKSPACE}/profiles/${PROFILE}/config" .config
-          # Merge shared packages for this firmware source (skip comments and blank lines)
+          # Merge shared packages for this firmware source.
+          # Keep functional kconfig lines: `# CONFIG_... is not set` is a real kconfig
+          # directive (NOT a comment) — dropping it changes defconfig resolution.
+          # Example: with ALL_KMODS=y, kmod-tls defaults to m and its conditional dep
+          # `PACKAGE_kmod-tls:kmod-tls` then caps kmod-bonding at m unless tls is
+          # explicitly not-set. Pure comments and blank lines are still skipped.
           PACKAGES_CONF="${GITHUB_WORKSPACE}/configs/${SOURCE_NAME}/packages.conf"
           if [ ! -f "${PACKAGES_CONF}" ]; then
             echo "::error::No packages.conf for source '${SOURCE_NAME}' (expected ${PACKAGES_CONF})"
             exit 1
           fi
-          grep -v '^\s*#' "${PACKAGES_CONF}" | grep -v '^\s*$' >> .config
+          awk '($0 ~ /^#[ ]CONFIG_[A-Za-z0-9_.-]+ is not set$/) || ($0 !~ /^[ \t]*#/ && $0 !~ /^[ \t]*$/)' "${PACKAGES_CONF}" >> .config
 
       # ── Phase 6: Build ──────────────────────────────────────────
       - name: Download sources

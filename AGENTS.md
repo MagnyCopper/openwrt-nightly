@@ -92,7 +92,7 @@ profiles/<device>/
 
 ### Config Merging (分层配置)
 1. `cp profiles/<device>/config .config` — 设备硬件配置
-2. `grep -v '^\s*#' configs/<source_name>/packages.conf | grep -v '^\s*$' >> .config` — 该源码的共享插件清单（缺失则报错中止）
+2. `awk` merge of `configs/<source_name>/packages.conf` — 该源码的共享插件清单（缺失则报错中止）。保留功能性 `# CONFIG_... is not set` 行（kconfig 指令非注释），跳过纯注释/空行
 3. `make defconfig` — resolve dependencies
 
 **基础镜像模式**：packages.conf 中注释行不会进入构建（merge 时 `grep -v` 过滤），用作插件暂存区——待验证插件注释保留，验证通过后取消注释推 dev 即启用。
@@ -136,6 +136,7 @@ with:
 - **Cache Before Clone**: NEVER restore cache before `git clone`. Always after.
 - **Download Cleanup**: Only delete small archive files (`*.tar.*`, `*.zip`, `*.gz`), NOT Go module source files which can be tiny (e.g. protobuf `editiondefaults.binpb` = 154 bytes)
 - **BOM Encoding**: All files must be UTF-8 WITHOUT BOM
+- **"is not set" Lines Are Functional**: `# CONFIG_xxx is not set` is a kconfig directive, NOT a comment — the packages.conf merge (awk) must preserve it. Trap: with `CONFIG_ALL_KMODS=y`, kmod-tls defaults to m; its conditional dep `PACKAGE_kmod-tls:kmod-tls` then caps kmod-bonding at m (silently excluded from image) unless kmod-tls is explicitly not-set. Symptom: explicit `=y` lines demoted to `=m` after `make defconfig` — diff the defconfig output against the input to catch it.
 - **LF Line Endings**: Enforced via `.gitattributes`
 - **CCACHE_DIR**: Must be set explicitly; OpenWrt doesn't default to `.ccache` in source root
 - **Action Versions**: Pin all `uses:` to specific tags (not `@master`/`@main`)
