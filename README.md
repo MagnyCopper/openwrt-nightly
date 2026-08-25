@@ -69,6 +69,7 @@ profiles/
 | luci-app-openclash | 科学上网代理客户端 (Clash.Meta 内核) |
 | luci-theme-argon | Argon 现代主题 |
 | luci-app-argon-config (+zh-cn i18n) | Argon 主题设置（含中文语言包）|
+| luci-app-ttyd (+zh-cn i18n) | 网页终端（LuCI 内开 shell，浏览器应急入口）|
 | bash / curl / ip-full / unzip / ruby 全家 | OpenClash 运行时依赖（含 YJIT）|
 | zram-swap | 1GB 内存防 OOM 兑底 |
 | 206 个网络类 kmod | netfilter/ipt/nft 全家、crypto、隧道、cake/bbr、oaf —— 运行时装 kmod 零阻力 |
@@ -78,16 +79,15 @@ profiles/
 | tcpdump | 网络抓包（断网诊断刚需）|
 | iperf3 | 内网测速 |
 
-> 以上与本地调试版 `openclash-24.10.6-r2s` 的 249 行增量严格对齐（逐行对账零差异）。
+> 除 ttyd 为后续增补外，其余与本地调试版 `openclash-24.10.6-r2s` 的 249 行增量严格对齐（逐行对账零差异）。
 
-### 暂缓启用（20 项，已在 packages.conf 中注释）
+### 暂缓启用（19 项，已在 packages.conf 中注释）
 
 | 项 | 暂缓原因 |
 |------|------|
 | luci-app-smartdns | DNS 加速，待试验田验证 |
 | luci-app-adblock | 与 openclash reject 规则重叠，待验证 |
 | luci-app-attendedsysupgrade | 仅适用官方 ASU 服务器，自编译固件用不上 |
-| luci-app-ttyd | 已有 SSH，按需启用 |
 | luci-app-ramfree | Linux 内存管理自足，收益存疑 |
 | luci-app-watchcat | 日志实证 5 天零重启，待验证 |
 | luci-app-autoreboot | 与 watchcat 功能重叠 |
