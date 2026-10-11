@@ -60,13 +60,14 @@ profiles/
 
 ## 已启用插件（ImmortalWrt）
 
-基础镜像模式：`configs/immortalwrt/packages.conf` 中**未注释的行才会编入固件**，注释行为暂缓启用的候选插件（先在测试机验证，满意后取消注释并推 dev 即可启用，构建逻辑自动过滤 `#` 行）。除 ddnsto 外均为 ImmortalWrt 官方 feed 自带；ddnsto 的第三方源（linkease/nas-packages）已在 build.yml Feeds 阶段自动配置，当前已注释改用运行时脚本安装，feed 保留供未来重新启用。
+基础镜像模式：`configs/immortalwrt/packages.conf` 中**未注释的行才会编入固件**，注释行为暂缓启用的候选插件（先在测试机验证，满意后取消注释并推 dev 即可启用，构建逻辑自动过滤 `#` 行）。除 ddnsto 外均为 ImmortalWrt 官方 feed 自带；第三方源由 build.yml Feeds 阶段**按需配置**——仅当 packages.conf 中对应插件未注释（=y）时才添加对应 feed。当前 ddnsto 处于暂缓注释状态，构建不拉取其 feed（linkease/nas-packages）；tailscale 的 LuCI 界面包（luci-app-tailscale-community）同理按需拉取，tailscale 后端本身来自官方 feed。
 
 ### 生效中（随固件构建）
 
 | 项 | 说明 |
 |------|------|
 | luci-app-openclash | 科学上网代理客户端 (Clash.Meta 内核) |
+| tailscale + luci-app-tailscale-community (+zh-cn i18n) | Tailscale 异地组网（已在路由器实测；后端来自官方 feed，LuCI 界面包来自第三方 feed 按需拉取）|
 | luci-theme-argon | Argon 现代主题 |
 | luci-app-argon-config (+zh-cn i18n) | Argon 主题设置（含中文语言包）|
 | luci-app-ttyd (+zh-cn i18n) | 网页终端（LuCI 内开 shell，浏览器应急入口）|

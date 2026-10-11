@@ -58,7 +58,7 @@ The workflow is a reusable workflow (`workflow_call`) called by:
 | 3 | Install deps | apt-get install build dependencies inline |
 | 4 | Clone source | `git clone --depth=1` into `/workdir/openwrt` |
 | 5 | Restore cache | **After clone** — restore `dl/` and `.ccache` (with CCACHE_DIR) |
-| 6 | Feeds | ddnsto 第三方源 setup → `feeds update -a` → `feeds install -a`（其余插件均 ImmortalWrt 自带）|
+| 6 | Feeds | 第三方 feed 按需 setup（仅 packages.conf 启用时添加）→ `feeds update -a` → `feeds install -a` |
 | 7 | Load config | Device config + `configs/<source_name>/packages.conf` merge → `.config` |
 | 8 | Download sources | `make defconfig && make download` + cleanup bad archives |
 | 9 | Compile | Parallel → single thread → verbose retry cascade |
@@ -101,7 +101,7 @@ profiles/<device>/
 
 ### Third-party feeds
 
-当前仅 ddnsto 需要第三方源（linkease/nas-packages + nas-packages-luci），已在 build.yml Feeds 阶段自动以 `src-git` 形式添加，无 profile/source 闸门（跨设备生效）。其余插件均自带于 ImmortalWrt 官方 feed（immortalwrt/luci + immortalwrt/packages）。若未来需要更多第三方源，参考 Section 7 的三种模式。
+第三方源按需添加（与 base-image mode 联动）：build.yml Feeds 阶段 grep `configs/<source_name>/packages.conf`，仅当对应插件未注释（=y）时才以 `src-git` 形式添加——当前两项：ddnsto（linkease/nas-packages + nas-packages-luci，暂缓注释中故默认不拉取）与 luci-app-tailscale-community（Tokisaki-Galaxy，tailscale 后端本身来自 ImmortalWrt 官方 packages feed）。其余插件均自带于 ImmortalWrt 官方 feed（immortalwrt/luci + immortalwrt/packages）。新增第三方源沿用同一 grep 联动模式，参考 Section 7 的三种方式。
 
 ## 4. Source Configuration
 
