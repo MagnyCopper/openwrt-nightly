@@ -1,0 +1,19 @@
+#!/bin/sh /etc/rc.common
+# Tailscale 子网广播:官方包无 advertise_routes UCI 键,
+# 依 OpenWrt 惯例以 init.d 在 tailscaled 启动后应用 CLI 状态(START=99 > 80)
+# LAN 网段由官方 ipcalc.sh 从 network.lan 动态推导,不硬编码
+
+START=99
+
+start() {
+  command -v tailscale >/dev/null || return 0
+  local i sock=/var/run/tailscale/tailscaled.sock
+  for i in 1 2 3 4 5 6 7 8 9 10; do [ -S "$sock" ] && break; sleep 1; done
+  [ -S "$sock" ] || return 0
+  local lan_ip lan_mask lan_prefix
+  lan_ip=$(uci -q get network.lan.ipaddr | cut -d/ -f1)
+  [ -n "$lan_ip" ] || return 0
+  lan_mask=$(uci -q get network.lan.netmask)
+  lan_prefix=$(ipcalc.sh "$lan_ip" "${lan_mask:-255.255.255.0}" 2>/dev/null | sed -n 's/^PREFIX=//p')
+  tailscale set --advertise-routes="${lan_ip}/${lan_prefix:-24}" --accept-dns=false 2>/dev/null
+}
