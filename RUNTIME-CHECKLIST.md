@@ -53,6 +53,9 @@ passwd                      # 设置 root 密码（镜像默认无密码）
    nft insert rule inet fw4 openclash_mangle ip daddr != 198.18.0.0/16 meta mark 0x164 counter return comment "UU-mark-bypass-164"
    ```
 4. 重启 OpenClash 生效。
+5. **auto_restart_day_time 选 6,不要选 7**:OpenClash 会把 7 原样写进 crontab 星期域,
+   busybox crond 只认 0-6 → 该重启任务静默失效(2026-10-11 实测修复:7→6,生成 `0 6 * * 0` = 周日 06:00)。
+   上游 OpenClash 的生成逻辑 Bug,待官方修复前手动规避。
 
 ### 3. UU 加速器
 ```sh
