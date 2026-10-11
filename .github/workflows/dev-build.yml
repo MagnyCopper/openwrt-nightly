@@ -31,6 +31,12 @@ on:
         type: string
         default: 'immortalwrt'
 
+# 同一分支的新 push 自动取消未完成的旧构建，避免重复 runner 占用与
+# dl/ccache 缓存并发回写（last-write-wins）。参考 GitHub Actions 官方 concurrency 文档。
+concurrency:
+  group: dev-build-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     name: Dev Build (${{ inputs.profile || 'r2s' }})
