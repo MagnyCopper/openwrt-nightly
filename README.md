@@ -31,9 +31,16 @@
 
 构建完成后，在 Actions 页面对应的 workflow run 中下载 Artifacts（包含固件镜像、sha256sums、config.buildinfo 和 manifest）。
 
+### 刷机后必读 ⚠️
+
+镜像刻意不包含 UU 插件、UU/OpenClash 共存补丁、Tailscale 登录态等运行时内容。刷机后需要补什么、
+哪些会自动延续，见 **[RUNTIME-CHECKLIST.md](RUNTIME-CHECKLIST.md)**（分“保留配置升级”与“全新刷入”两种场景）。
+
 ## 目录结构
 
 ```
+RUNTIME-CHECKLIST.md   # 刷机后运行时手动清单（UU/OpenClash 共存补丁、Tailscale 认证、ddnsto）
+
 configs/
   immortalwrt/          # 按固件源码分目录 (build.yml 按 source_name 读取对应子目录)
     packages.conf       # ImmortalWrt 共享插件清单 (基础镜像模式:未注释=生效,注释=暂缓待验证)
@@ -44,13 +51,16 @@ profiles/
     files/               # 自定义固件文件 (开机自动应用)
       etc/
         hotplug.d/iface/
+          98-gro-forwarding    # ifup 后应用 Tailscale 官方 UDP GRO 转发优化（$DEVICE 过滤，依赖 ethtool 包）
           99-rps-tune        # ifup 后重应用 RPS 散核（防御运行时改写）
         init.d/
           rps-tune            # 收包软中断 CPU0 → CPU1-3 散核 + RFS 流表
+          tailscale-tune      # START=99：按 network.lan 动态推导子网并 tailscale set 广播
         sysctl.d/
           99-tune.conf         # conntrack 32万/TCP 缓冲 32MB/软中断配额翻倍
         uci-defaults/
           99-custom-lan-ip     # 首启设 LAN 192.168.10.1 (避开上级路由 192.168.1.x)
+          99-tailscale-firewall # fw4 tailscale0 专用 zone + LAN 转发 + LuCI 放行 + OpenClash CGNAT 绕过
 
 .github/workflows/
   build.yml              # 可复用构建工作流 (核心引擎，仅官方 actions，零外部脚本)
@@ -67,7 +77,8 @@ profiles/
 | 项 | 说明 |
 |------|------|
 | luci-app-openclash | 科学上网代理客户端 (Clash.Meta 内核) |
-| tailscale + luci-app-tailscale-community (+zh-cn i18n) | Tailscale 异地组网（已在路由器实测；后端来自官方 feed，LuCI 界面包来自第三方 feed 按需拉取）|
+| tailscale | Tailscale 异地组网后端（已在路由器实测：子网路由 + GRO 转发优化；官方 feed）|
+| ethtool | GRO 优化的热插拔脚本依赖（98-gro-forwarding）|
 | luci-theme-argon | Argon 现代主题 |
 | luci-app-argon-config (+zh-cn i18n) | Argon 主题设置（含中文语言包）|
 | luci-app-ttyd (+zh-cn i18n) | 网页终端（LuCI 内开 shell，浏览器应急入口）|
@@ -82,10 +93,11 @@ profiles/
 
 > 除 ttyd 为后续增补外，其余与本地调试版 `openclash-24.10.6-r2s` 的 249 行增量严格对齐（逐行对账零差异）。
 
-### 暂缓启用（19 项，已在 packages.conf 中注释）
+### 暂缓启用（21 项，已在 packages.conf 中注释）
 
 | 项 | 暂缓原因 |
 |------|------|
+| luci-app-tailscale-community (+zh-cn i18n) | LuCI 图形面板，**未真机验证**（线上仅 CLI）；真机验证后取消注释启用，第三方 feed 由 build.yml 联动自动拉取 |
 | luci-app-smartdns | DNS 加速，待试验田验证 |
 | luci-app-adblock | 与 openclash reject 规则重叠，待验证 |
 | luci-app-attendedsysupgrade | 仅适用官方 ASU 服务器，自编译固件用不上 |
