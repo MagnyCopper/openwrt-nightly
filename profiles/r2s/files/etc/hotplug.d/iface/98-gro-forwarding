@@ -1,1 +1,7 @@
-[object Promise]
+#!/bin/sh
+# Tailscale 官方 UDP GRO 转发优化(来源:tailscale.com/kb/1777)
+# 官方 hotplug 规范:按 $ACTION/$DEVICE 过滤,只处理本事件接口
+[ "$ACTION" = "ifup" ] || exit 0
+case "$DEVICE" in
+  eth0|eth1) ethtool -K "$DEVICE" rx-udp-gro-forwarding on rx-gro-list off 2>/dev/null ;;
+esac

@@ -1,1 +1,27 @@
-[object Promise]
+#!/bin/sh
+# Tailscale 固件级配置(纯 UCI 部分):防火墙区段 + OpenClash 绕过
+# 子网广播由 /etc/init.d/tailscale-tune 在服务启动后应用(官方包无 advertise_routes UCI 键)
+
+uci -q set firewall.tailscale=zone
+uci -q set firewall.tailscale.name='tailscale'
+uci -q add_list firewall.tailscale.device='tailscale0'
+uci -q set firewall.tailscale.input='REJECT'
+uci -q set firewall.tailscale.output='ACCEPT'
+uci -q set firewall.tailscale.forward='REJECT'
+uci -q set firewall.tailscale_to_lan=forwarding
+uci -q set firewall.tailscale_to_lan.src='tailscale'
+uci -q set firewall.tailscale_to_lan.dest='lan'
+uci -q set firewall.allow_tailscale_luci=rule
+uci -q set firewall.allow_tailscale_luci.name='Allow-Tailscale-LuCI'
+uci -q set firewall.allow_tailscale_luci.src='tailscale'
+uci -q set firewall.allow_tailscale_luci.proto='tcp'
+uci -q set firewall.allow_tailscale_luci.dest_port='80'
+uci -q set firewall.allow_tailscale_luci.family='ipv4'
+uci -q set firewall.allow_tailscale_luci.target='ACCEPT'
+uci -q add_list openclash.config.local_network_pass='100.64.0.0/10'
+
+uci commit firewall
+uci -q commit openclash
+
+# 启用子网广播服务(首启后每次开机自动对齐 advertise-routes)
+/etc/init.d/tailscale-tune enable
